@@ -2,14 +2,11 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\User;
+use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
+use Illuminate\Foundation\Validation\ValidatesRequests;
+use Illuminate\Routing\Controller as BaseController;
 
-class UserController extends Controller
+class Controller extends BaseController
 {
-    public function index()
-    {
-        $users = User::with('role')->get();
-
-        return view('users', compact('users'));
-    }
+    use AuthorizesRequests, ValidatesRequests;
 }

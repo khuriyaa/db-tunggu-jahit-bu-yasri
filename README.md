@@ -64,3 +64,26 @@ If you discover a security vulnerability within Laravel, please send an e-mail t
 ## License
 
 The Laravel framework is open-sourced software licensed under the [MIT license](https://opensource.org/licenses/MIT).
+
+## Login dan hak akses
+
+Pengguna masuk melalui `/login` menggunakan email dan password yang sudah tersimpan di tabel `users`. Customer dapat mendaftar sendiri melalui tautan **Daftar sebagai Customer** di halaman login atau langsung membuka `/register`. Setelah pendaftaran berhasil, akun Customer dan profil pelanggan dibuat, lalu pengguna langsung masuk ke dashboard. Password harus memiliki minimal 8 karakter dan email harus belum pernah digunakan.
+
+Setelah login, semua role dapat membuka dashboard. Hanya role `Admin` yang dapat membuka daftar pengguna di `/users`; role `Staff` dan `Customer` akan menerima respons 403 jika mencoba mengaksesnya. Gunakan tombol **Keluar** untuk mengakhiri sesi.
+
+Isi `ADMIN_EMAIL` dan `ADMIN_PASSWORD` di `.env` dengan kredensial Admin yang ingin digunakan. Seeder akan membuat atau memperbarui akun Admin tersebut. Jalankan:
+
+```sh
+php artisan migrate
+php artisan db:seed --class=RoleSeeder
+```
+
+Gunakan nilai `ADMIN_EMAIL` dan `ADMIN_PASSWORD` tersebut untuk masuk. Pilih password yang kuat dan jangan bagikan file `.env`.
+
+## Pesanan jahit dan permak
+
+Role `Admin` dan `Staff` dapat membuka menu **Pesanan** untuk mencatat pesanan dan memperbarui statusnya. Pilih pelanggan dan layanan, lalu isi jenis pakaian, jumlah, tanggal masuk, serta perkiraan selesai. Harga pesanan dihitung dari harga dasar layanan dikalikan jumlah, dan setiap perubahan status dicatat di riwayat pesanan.
+
+Customer dapat membuat pesanan sendiri dari dashboard dengan memilih metode pembayaran Tunai, Transfer Bank, atau QRIS. Dashboard Customer hanya menampilkan layanan beserta harga, pesanan miliknya, metode pembayaran, dan notifikasi saat pesanan berstatus `Selesai`; ringkasan bisnis dan data pengguna tidak ditampilkan. Status pesanan adalah `Menunggu`, `Diproses`, `Selesai`, dan `Diambil`. Pengelolaan pesanan serta perubahan status tetap hanya dapat dilakukan oleh `Admin` dan `Staff`.
+
+Setelah menambahkan metode pembayaran ke pesanan yang ada, jalankan `php artisan migrate` untuk memperbarui skema database.

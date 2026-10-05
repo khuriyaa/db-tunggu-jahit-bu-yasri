@@ -9,6 +9,8 @@ class Order extends Model
 {
     use HasFactory;
 
+    public const PAYMENT_METHODS = ['Tunai', 'Transfer Bank', 'QRIS'];
+
     protected $fillable = [
         'order_code',
         'queue_number',
@@ -17,6 +19,7 @@ class Order extends Model
         'order_date',
         'estimated_completion_date',
         'current_status',
+        'payment_method',
         'total_items',
         'total_price',
     ];

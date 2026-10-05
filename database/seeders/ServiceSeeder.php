@@ -9,25 +9,30 @@ class ServiceSeeder extends Seeder
 {
     public function run(): void
     {
-        Service::create([
-            'service_name' => 'Jahit Baju',
-            'service_type' => 'Jahit',
-            'base_price' => 150000,
-            'estimated_days' => 5,
-        ]);
-
-        Service::create([
-            'service_name' => 'Permak Celana',
-            'service_type' => 'Permak',
-            'base_price' => 30000,
-            'estimated_days' => 2,
-        ]);
-
-        Service::create([
-            'service_name' => 'Permak Baju',
-            'service_type' => 'Permak',
-            'base_price' => 40000,
-            'estimated_days' => 2,
-        ]);
+        foreach ([
+            [
+                'service_name' => 'Jahit Baju',
+                'service_type' => 'Jahit',
+                'base_price' => 150000,
+                'estimated_days' => 5,
+            ],
+            [
+                'service_name' => 'Permak Celana',
+                'service_type' => 'Permak',
+                'base_price' => 30000,
+                'estimated_days' => 2,
+            ],
+            [
+                'service_name' => 'Permak Baju',
+                'service_type' => 'Permak',
+                'base_price' => 40000,
+                'estimated_days' => 2,
+            ],
+        ] as $service) {
+            Service::firstOrCreate(
+                ['service_name' => $service['service_name']],
+                $service,
+            );
+        }
     }
 }
