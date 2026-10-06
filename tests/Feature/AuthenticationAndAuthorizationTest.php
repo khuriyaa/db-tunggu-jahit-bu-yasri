@@ -7,10 +7,10 @@ use App\Models\Order;
 use App\Models\Role;
 use App\Models\Service;
 use App\Models\User;
-use Illuminate\Foundation\Testing\RefreshDatabase;
-use Illuminate\Support\Facades\Hash;
 use Database\Seeders\RoleSeeder;
 use Database\Seeders\ServiceSeeder;
+use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Hash;
 use Tests\TestCase;
 
 class AuthenticationAndAuthorizationTest extends TestCase
@@ -100,8 +100,161 @@ class AuthenticationAndAuthorizationTest extends TestCase
         $customer = $this->createUser('Customer');
 
         $this->actingAs($admin)->get(route('users.index'))->assertOk();
+        $this->actingAs($admin)->get(route('users.index'))->assertSee('Tambah akun');
+        $this->actingAs($admin)->get(route('users.manage.edit'))
+            ->assertOk()
+            ->assertSee('Ubah Pengguna')
+            ->assertSee('Simpan perubahan');
+        $this->actingAs($admin)->get(route('users.manage.delete'))
+            ->assertOk()
+            ->assertSee('Hapus Pengguna')
+            ->assertSee('data-confirm', false);
+        $this->actingAs($admin)->get(route('users.index'))
+            ->assertDontSee('Simpan perubahan')
+            ->assertDontSee('data-confirm', false);
         $this->actingAs($staff)->get(route('users.index'))->assertForbidden();
+        $this->actingAs($staff)->get(route('users.manage.edit'))->assertForbidden();
+        $this->actingAs($staff)->get(route('users.manage.delete'))->assertForbidden();
         $this->actingAs($customer)->get(route('users.index'))->assertForbidden();
+        $this->actingAs($customer)->get(route('users.manage.edit'))->assertForbidden();
+        $this->actingAs($customer)->get(route('users.manage.delete'))->assertForbidden();
+        $this->actingAs($staff)->post(route('users.store'), [])->assertForbidden();
+        $this->actingAs($customer)->post(route('users.store'), [])->assertForbidden();
+        $this->actingAs($staff)->patch(route('users.update', $customer), [])->assertForbidden();
+        $this->actingAs($customer)->patch(route('users.update', $staff), [])->assertForbidden();
+    }
+
+    public function test_admin_can_update_user_name_email_and_role(): void
+    {
+        $admin = $this->createUser('Admin');
+        $user = $this->createUser('Owner', ['email' => 'owner-lama@example.com']);
+        $customerRole = Role::firstOrCreate(
+            ['role_name' => 'Customer'],
+            ['description' => 'Customer'],
+        );
+
+        $this->actingAs($admin)
+            ->patch(route('users.update', $user), [
+                'name' => 'Nama Baru',
+                'email' => 'owner-baru@example.com',
+                'role_id' => $customerRole->id,
+            ])
+            ->assertRedirect(route('users.manage.edit'))
+            ->assertSessionHas('success', 'Data pengguna berhasil diperbarui.');
+
+        $user->refresh()->load('role', 'customer');
+        $this->assertSame('Nama Baru', $user->name);
+        $this->assertSame('owner-baru@example.com', $user->email);
+        $this->assertSame('Customer', $user->role->role_name);
+        $this->assertNotNull($user->customer);
+    }
+
+    public function test_admin_cannot_change_own_role_and_update_rejects_duplicate_email(): void
+    {
+        $admin = $this->createUser('Admin', ['email' => 'admin@example.com']);
+        $user = $this->createUser('Owner', ['email' => 'owner@example.com']);
+        $ownerRole = Role::firstOrCreate(
+            ['role_name' => 'Owner'],
+            ['description' => 'Owner'],
+        );
+
+        $this->actingAs($admin)
+            ->patch(route('users.update', $admin), [
+                'name' => 'Admin Baru',
+                'email' => 'admin@example.com',
+                'role_id' => $ownerRole->id,
+            ])
+            ->assertRedirect(route('users.manage.edit'))
+            ->assertSessionHasErrors(['role_id'], null, 'updateUser'.$admin->id);
+
+        $this->assertSame('Admin', $admin->fresh()->role->role_name);
+        $this->actingAs($admin)
+            ->from(route('users.manage.edit'))
+            ->patch(route('users.update', $user), [
+                'name' => 'Owner Baru',
+                'email' => 'admin@example.com',
+                'role_id' => $ownerRole->id,
+            ])
+            ->assertRedirect(route('users.manage.edit'))
+            ->assertSessionHasErrors(['email'], null, 'updateUser'.$user->id);
+
+        $this->assertSame('owner@example.com', $user->fresh()->email);
+    }
+
+    public function test_admin_can_create_admin_owner_and_customer_accounts(): void
+    {
+        $admin = $this->createUser('Admin');
+
+        foreach (['Admin', 'Owner', 'Customer'] as $index => $roleName) {
+            $role = Role::firstOrCreate(
+                ['role_name' => $roleName],
+                ['description' => $roleName],
+            );
+            $email = strtolower($roleName).$index.'@example.com';
+
+            $this->actingAs($admin)
+                ->post(route('users.store'), [
+                    'name' => $roleName.' Baru',
+                    'email' => $email,
+                    'phone_number' => '08123456789',
+                    'role_id' => $role->id,
+                    'password' => 'initial-password',
+                    'password_confirmation' => 'initial-password',
+                ])
+                ->assertRedirect(route('users.index'))
+                ->assertSessionHas('success');
+
+            $user = User::with(['role', 'customer'])->where('email', $email)->firstOrFail();
+            $this->assertSame($roleName, $user->role->role_name);
+            $this->assertTrue(Hash::check('initial-password', $user->password));
+            $this->assertSame($roleName === 'Customer', $user->customer !== null);
+        }
+
+        $staffRole = Role::firstOrCreate(
+            ['role_name' => 'Staff'],
+            ['description' => 'Staff'],
+        );
+        $this->actingAs($admin)
+            ->from(route('users.index'))
+            ->post(route('users.store'), [
+                'name' => 'Staff Baru',
+                'email' => 'staff-baru@example.com',
+                'role_id' => $staffRole->id,
+                'password' => 'initial-password',
+                'password_confirmation' => 'initial-password',
+            ])
+            ->assertRedirect(route('users.index'))
+            ->assertSessionHasErrors('role_id');
+
+        $this->assertDatabaseMissing('users', ['email' => 'staff-baru@example.com']);
+        $this->actingAs($admin)
+            ->get(route('users.index'))
+            ->assertOk()
+            ->assertDontSee('Buat akun Admin, Staff');
+    }
+
+    public function test_admin_account_creation_rejects_duplicate_email_and_invalid_passwords(): void
+    {
+        $admin = $this->createUser('Admin');
+        $role = Role::firstOrCreate(
+            ['role_name' => 'Owner'],
+            ['description' => 'Staff'],
+        );
+        $this->createUser('Customer', ['email' => 'already-used@example.com']);
+
+        $this->actingAs($admin)
+            ->from(route('users.index'))
+            ->post(route('users.store'), [
+                'name' => 'Akun Baru',
+                'email' => 'already-used@example.com',
+                'role_id' => $role->id,
+                'password' => 'short',
+                'password_confirmation' => 'different',
+            ])
+            ->assertRedirect(route('users.index'))
+            ->assertSessionHasErrors(['email', 'password']);
+
+        $this->assertSame(2, User::count());
     }
 
     public function test_each_role_can_view_the_dashboard(): void
@@ -109,6 +262,10 @@ class AuthenticationAndAuthorizationTest extends TestCase
         foreach (['Admin', 'Staff', 'Customer'] as $roleName) {
             $this->actingAs($this->createUser($roleName))->get(route('dashboard'))->assertOk();
         }
+
+        $this->actingAs($this->createUser('Owner'))
+            ->get(route('dashboard'))
+            ->assertRedirect(route('owner.dashboard'));
     }
 
     public function test_dashboard_shows_live_business_totals(): void
@@ -138,8 +295,7 @@ class AuthenticationAndAuthorizationTest extends TestCase
         $this->actingAs($admin)
             ->get(route('dashboard'))
             ->assertOk()
-            ->assertViewHas('stats', fn (array $stats): bool =>
-                $stats['users'] === 2
+            ->assertViewHas('stats', fn (array $stats): bool => $stats['users'] === 2
                 && $stats['customers'] === 1
                 && $stats['orders'] === 1
                 && $stats['services'] === 1
@@ -338,14 +494,20 @@ class AuthenticationAndAuthorizationTest extends TestCase
             'admin.name' => 'Administrator',
             'admin.email' => 'kiya@gmail.com',
             'admin.password' => '150905',
+            'owner.name' => 'Pemilik Tes',
+            'owner.email' => 'owner@example.com',
+            'owner.password' => 'owner-test-password',
         ]);
 
         $this->seed(RoleSeeder::class);
 
         $admin = User::with('role')->where('email', 'kiya@gmail.com')->firstOrFail();
+        $owner = User::with('role')->where('email', 'owner@example.com')->firstOrFail();
 
         $this->assertSame('Admin', $admin->role->role_name);
         $this->assertTrue(Hash::check('150905', $admin->password));
+        $this->assertSame('Owner', $owner->role->role_name);
+        $this->assertTrue(Hash::check('owner-test-password', $owner->password));
     }
 
     public function test_service_seeder_can_be_run_repeatedly_without_duplicates(): void

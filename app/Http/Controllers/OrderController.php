@@ -134,6 +134,13 @@ class OrderController extends Controller
         return redirect()->route('orders.index')->with('success', 'Status pesanan berhasil diperbarui.');
     }
 
+    public function destroy(Order $order): RedirectResponse
+    {
+        $order->delete();
+
+        return redirect()->route('orders.index')->with('success', 'Pesanan dan detail terkait berhasil dihapus.');
+    }
+
     private function createOrder(array $validated, int $customerId): void
     {
         $service = Service::query()->whereKey($validated['service_id'])->lockForUpdate()->first();

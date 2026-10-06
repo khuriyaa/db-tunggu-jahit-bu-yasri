@@ -69,16 +69,16 @@ The Laravel framework is open-sourced software licensed under the [MIT license](
 
 Pengguna masuk melalui `/login` menggunakan email dan password yang sudah tersimpan di tabel `users`. Customer dapat mendaftar sendiri melalui tautan **Daftar sebagai Customer** di halaman login atau langsung membuka `/register`. Setelah pendaftaran berhasil, akun Customer dan profil pelanggan dibuat, lalu pengguna langsung masuk ke dashboard. Password harus memiliki minimal 8 karakter dan email harus belum pernah digunakan.
 
-Setelah login, semua role dapat membuka dashboard. Hanya role `Admin` yang dapat membuka daftar pengguna di `/users`; role `Staff` dan `Customer` akan menerima respons 403 jika mencoba mengaksesnya. Gunakan tombol **Keluar** untuk mengakhiri sesi.
+Setelah login, semua role dapat membuka dashboard. Akun dengan role `Owner` akan diarahkan ke `/owner/dashboard` yang berisi ringkasan pesanan; rincian pesanan dan keuangan tersedia di `/owner/reports`. Kedua halaman hanya dapat dibuka oleh Owner. Hanya role `Admin` yang dapat membuka daftar pengguna di `/users` dan daftar layanan di `/services`, membuat akun baru dengan role Admin, Owner, atau Customer, serta menghapus pengguna, pesanan, dan layanan. Akun Customer yang dibuat Admin otomatis mendapat profil pelanggan. Admin tidak dapat menghapus akunnya sendiri. Menghapus pengguna atau pesanan ikut menghapus data terkait sesuai relasi database; menghapus layanan menghapus detail pekerjaan terkait tetapi mempertahankan pesanan dan nilai pesanan. Gunakan tombol **Keluar** untuk mengakhiri sesi.
 
-Isi `ADMIN_EMAIL` dan `ADMIN_PASSWORD` di `.env` dengan kredensial Admin yang ingin digunakan. Seeder akan membuat atau memperbarui akun Admin tersebut. Jalankan:
+Isi `ADMIN_EMAIL` dan `ADMIN_PASSWORD` di `.env` dengan kredensial Admin yang ingin digunakan. Untuk membuat akun pemilik secara terpisah, isi juga `OWNER_NAME`, `OWNER_EMAIL`, dan `OWNER_PASSWORD` dengan email yang berbeda dari Admin. Seeder akan membuat atau memperbarui kedua akun yang dikonfigurasi. Jalankan:
 
 ```sh
 php artisan migrate
 php artisan db:seed --class=RoleSeeder
 ```
 
-Gunakan nilai `ADMIN_EMAIL` dan `ADMIN_PASSWORD` tersebut untuk masuk. Pilih password yang kuat dan jangan bagikan file `.env`.
+Gunakan email dan password Owner yang sudah dikonfigurasi untuk masuk melalui `/login`; akun Owner akan langsung diarahkan ke laporan. Pilih password yang kuat dan jangan bagikan file `.env`. Laporan menampilkan nilai pesanan sebagai estimasi omzet; aplikasi belum mencatat atau memverifikasi pembayaran yang telah diterima.
 
 ## Pesanan jahit dan permak
 

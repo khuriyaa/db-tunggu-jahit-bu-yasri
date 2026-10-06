@@ -7,15 +7,20 @@ use App\Models\Order;
 use App\Models\Service;
 use App\Models\User;
 use Illuminate\Contracts\View\View;
+use Illuminate\Http\RedirectResponse;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use RuntimeException;
 
 class DashboardController extends Controller
 {
-    public function index(): View
+    public function index(): View|RedirectResponse
     {
         $user = Auth::user();
+        if ($user->role?->role_name === 'Owner') {
+            return redirect()->route('owner.dashboard');
+        }
+
         $isCustomer = $user->role?->role_name === 'Customer';
         $customer = $isCustomer ? $user->customer : null;
         $stats = null;

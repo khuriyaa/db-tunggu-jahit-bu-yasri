@@ -20,6 +20,9 @@
             <a class="nav-link" href="{{ route('dashboard') }}"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3.5" y="3.5" width="7" height="7" rx="1.5"/><rect x="13.5" y="3.5" width="7" height="5" rx="1.5"/><rect x="13.5" y="11.5" width="7" height="9" rx="1.5"/><rect x="3.5" y="13.5" width="7" height="7" rx="1.5"/></svg>Dashboard</a>
             @if (auth()->user()->role?->role_name === 'Admin')
                 <a class="nav-link" href="{{ route('users.index') }}"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="9" cy="8" r="3.5"/><path d="M3 20v-1a6 6 0 0 1 12 0v1M16 5.2a3.5 3.5 0 0 1 0 6.6M18 14a5 5 0 0 1 3 4.6V20"/></svg>Data Pengguna</a>
+                <a class="nav-link" href="{{ route('users.manage.edit') }}"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m4 16.5-.8 4.3 4.3-.8L19.7 7.8a2.1 2.1 0 0 0-3-3L4 16.5Z"/><path d="m14.9 6.6 3 3"/></svg>Ubah Pengguna</a>
+                <a class="nav-link" href="{{ route('users.manage.delete') }}"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M10 11v6m4-6v6M6 7l1 14h10l1-14M9 7V4h6v3"/></svg>Hapus Pengguna</a>
+                <a class="nav-link" href="{{ route('services.index') }}"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 19.5 12 4l8 15.5H4Z"/><path d="M8 15h8M10 11h4"/></svg>Layanan</a>
             @endif
             <a class="nav-link active" href="{{ route('orders.index') }}" aria-current="page"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7.5 12 3l8 4.5v9L12 21l-8-4.5v-9Z"/><path d="m4.5 7.8 7.5 4.4 7.5-4.4M12 12.2V21"/></svg>Pesanan</a>
         </nav>
@@ -40,6 +43,9 @@
 
             @if (session('success'))
                 <div class="alert-success reveal" role="status">{{ session('success') }}</div>
+            @endif
+            @if (session('error'))
+                <div class="alert-error reveal" role="alert">{{ session('error') }}</div>
             @endif
 
             <details class="order-create-card reveal" @if ($errors->any()) open @endif>
@@ -146,7 +152,7 @@
                 <div class="table-card-heading"><div><h2>Semua pesanan</h2><p>Urut dari pesanan terbaru</p></div><span class="table-sewing-mark" aria-hidden="true">✧</span></div>
                 <div class="table-scroll">
                     <table>
-                        <thead><tr><th scope="col">Pesanan</th><th scope="col">Pelanggan &amp; pekerjaan</th><th scope="col">Tanggal</th><th scope="col">Nilai</th><th scope="col">Pembayaran</th><th scope="col">Status</th><th scope="col">Perbarui status</th></tr></thead>
+                        <thead><tr><th scope="col">Pesanan</th><th scope="col">Pelanggan &amp; pekerjaan</th><th scope="col">Tanggal</th><th scope="col">Nilai</th><th scope="col">Pembayaran</th><th scope="col">Status</th><th scope="col">Perbarui status</th>@if (auth()->user()->role?->role_name === 'Admin')<th scope="col">Aksi</th>@endif</tr></thead>
                         <tbody>
                             @forelse ($orders as $order)
                                 <tr>
@@ -174,9 +180,18 @@
                                             <button class="button button-outline status-save" type="submit">Simpan</button>
                                         </form>
                                     </td>
+                                    @if (auth()->user()->role?->role_name === 'Admin')
+                                        <td>
+                                            <form method="POST" action="{{ route('orders.destroy', $order) }}" data-confirm="Hapus pesanan {{ $order->order_code }} beserta detail dan riwayat statusnya? Tindakan ini tidak dapat dibatalkan.">
+                                                @csrf
+                                                @method('DELETE')
+                                                <button class="button button-danger delete-button" type="submit">Hapus</button>
+                                            </form>
+                                        </td>
+                                    @endif
                                 </tr>
                             @empty
-                                <tr><td class="empty-state" colspan="7"><span aria-hidden="true">✂</span><strong>Belum ada pesanan</strong><small>Gunakan formulir di atas untuk mencatat pesanan pertama.</small></td></tr>
+                                <tr><td class="empty-state" colspan="{{ auth()->user()->role?->role_name === 'Admin' ? 8 : 7 }}"><span aria-hidden="true">✂</span><strong>Belum ada pesanan</strong><small>Gunakan formulir di atas untuk mencatat pesanan pertama.</small></td></tr>
                             @endforelse
                         </tbody>
                     </table>

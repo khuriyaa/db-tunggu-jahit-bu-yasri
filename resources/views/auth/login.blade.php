@@ -51,7 +51,7 @@
                 </span>
                 <span class="section-kicker">SELAMAT DATANG KEMBALI</span>
                 <h2>Masuk ke akun</h2>
-                <p class="login-description">Silakan masuk untuk melanjutkan ke ruang kerja Anda.</p>
+                <p class="login-description">Masuk ke akun Tunggu Jahit Bu Yasri Anda.</p>
 
                 <form method="POST" action="{{ route('login.store') }}" class="login-form">
                     @csrf

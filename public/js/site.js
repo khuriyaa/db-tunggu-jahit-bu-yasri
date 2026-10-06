@@ -1,4 +1,12 @@
 (() => {
+    document.querySelectorAll('form[data-confirm]').forEach((form) => {
+        form.addEventListener('submit', (event) => {
+            if (!window.confirm(form.dataset.confirm)) {
+                event.preventDefault();
+            }
+        });
+    });
+
     document.querySelectorAll('.button').forEach((button) => {
         button.addEventListener('pointerdown', (event) => {
             if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
