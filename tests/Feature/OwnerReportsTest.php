@@ -27,6 +27,7 @@ class OwnerReportsTest extends TestCase
         $this->get(route('owner.dashboard'))
             ->assertOk()
             ->assertSee('Ringkasan pesanan')
+            ->assertSee('Grafik keuangan')
             ->assertDontSee('Ringkasan metode pembayaran')
             ->assertDontSee('Nilai pesanan bulan ini')
             ->assertViewHas('summary', function (array $summary): bool {
@@ -82,6 +83,12 @@ class OwnerReportsTest extends TestCase
                     && $summary['active_orders'] === 2
                     && $summary['total_orders'] === 3
                     && ! isset($summary['month_value']);
+            })
+            ->assertViewHas('monthlyFinancials', function ($monthlyFinancials): bool {
+                return $monthlyFinancials->count() === 6
+                    && $monthlyFinancials->sum('value') === 145000.0
+                    && $monthlyFinancials->last()['value'] === 125000.0
+                    && $monthlyFinancials->last()['bar_height'] === 100.0;
             });
     }
 

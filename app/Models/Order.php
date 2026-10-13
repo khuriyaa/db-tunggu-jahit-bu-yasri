@@ -10,6 +10,7 @@ class Order extends Model
     use HasFactory;
 
     public const PAYMENT_METHODS = ['Tunai', 'Transfer Bank', 'QRIS'];
+    public const CUSTOMER_PAYMENT_METHODS = ['Tunai', 'Transfer Bank', 'QRIS'];
 
     protected $fillable = [
         'order_code',

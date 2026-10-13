@@ -9,8 +9,9 @@
     <style>
         body {
             margin: 0;
-            font-family: Arial, sans-serif;
+            font-family: 'Segoe UI Variable', 'Segoe UI', 'Trebuchet MS', sans-serif;
             background: #f5f6fa;
+            line-height: 1.5;
         }
 
         .navbar {

@@ -104,7 +104,29 @@ class OrderController extends Controller
 
         DB::transaction(fn () => $this->createOrder($validated, $customer->id));
 
-        return redirect()->route('dashboard')->with('success', 'Pesanan berhasil dikirim dan sedang menunggu konfirmasi.');
+        return redirect()->route('customer.orders.create')->with('success', 'Pesanan berhasil dikirim dan sedang menunggu konfirmasi.');
+    }
+
+    public function updateCustomerPayment(Request $request, int $orderId): RedirectResponse
+    {
+        $validated = $request->validate([
+            'payment_method' => ['required', 'string', Rule::in(Order::CUSTOMER_PAYMENT_METHODS)],
+        ]);
+
+        $customer = $request->user()->customer;
+
+        if (! $customer) {
+            abort(403, 'Akun Customer belum memiliki profil pelanggan.');
+        }
+
+        $order = Order::query()
+            ->where('customer_id', $customer->id)
+            ->findOrFail($orderId);
+
+        $order->update(['payment_method' => $validated['payment_method']]);
+
+        return redirect()->route('customer.payments.index')
+            ->with('success', "Metode pembayaran pesanan {$order->order_code} berhasil disimpan. Pembayaran belum terverifikasi otomatis.");
     }
 
     public function updateStatus(Request $request, Order $order): RedirectResponse

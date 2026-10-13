@@ -90,6 +90,30 @@
                 </div>
             </section>
 
+            <section class="table-card owner-finance-chart reveal" aria-labelledby="owner-finance-chart-title">
+                <div class="table-card-heading">
+                    <div>
+                        <h2 id="owner-finance-chart-title">Grafik keuangan</h2>
+                        <p>Nilai pesanan per bulan selama enam bulan terakhir · estimasi omzet</p>
+                    </div>
+                    <span class="table-sewing-mark" aria-hidden="true">✧</span>
+                </div>
+                <ol class="finance-chart" aria-label="Grafik nilai pesanan enam bulan terakhir">
+                    @foreach ($monthlyFinancials as $month)
+                        <li class="finance-chart-column">
+                            <span class="finance-chart-value" title="Rp {{ number_format($month['value'], 0, ',', '.') }}">
+                                {{ $month['value_label'] }}
+                            </span>
+                            <span class="finance-chart-track" aria-hidden="true">
+                                <span class="finance-chart-bar" style="height: {{ $month['bar_height'] }}%"></span>
+                            </span>
+                            <span class="finance-chart-month">{{ $month['label'] }}</span>
+                            <span class="visually-hidden">{{ $month['label'] }}: Rp {{ number_format($month['value'], 0, ',', '.') }}</span>
+                        </li>
+                    @endforeach
+                </ol>
+            </section>
+
             <section class="table-card owner-report-card reveal">
                 <div class="table-card-heading">
                     <div><h2>Pesanan terbaru</h2><p>Lima pesanan terbaru dari semua pelanggan</p></div>

@@ -11,7 +11,7 @@
 <body class="app-page {{ $isCustomer ? 'customer-dashboard' : '' }}">
     @include('partials.corner-vine')
     <aside class="sidebar">
-        <a class="brand" href="{{ route('dashboard') }}" aria-label="Tunggu Jahit Bu Yasri, dashboard">
+        <a class="brand" href="{{ $isCustomer ? route('customer.orders.create') : route('dashboard') }}" aria-label="Tunggu Jahit Bu Yasri, dashboard">
             <span class="brand-mark" aria-hidden="true">
                 <svg viewBox="0 0 48 48" fill="none">
                     <path d="M12 35 35 12M15 12l21 21M12 12l24 24" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/>
@@ -24,10 +24,25 @@
 
         <p class="nav-caption">MENU UTAMA</p>
         <nav class="side-nav" aria-label="Navigasi utama">
-            <a class="nav-link active" href="{{ route('dashboard') }}" aria-current="page">
-                <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3.5" y="3.5" width="7" height="7" rx="1.5"/><rect x="13.5" y="3.5" width="7" height="5" rx="1.5"/><rect x="13.5" y="11.5" width="7" height="9" rx="1.5"/><rect x="3.5" y="13.5" width="7" height="7" rx="1.5"/></svg>
-                Dashboard
-            </a>
+            @if ($isCustomer)
+                <a class="nav-link {{ $customerPage === 'create' ? 'active' : '' }}" href="{{ route('customer.orders.create') }}" @if ($customerPage === 'create') aria-current="page" @endif>
+                    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"/><circle cx="12" cy="12" r="9"/></svg>
+                    Pesanan Baru
+                </a>
+                <a class="nav-link {{ $customerPage === 'orders' ? 'active' : '' }}" href="{{ route('customer.orders.index') }}" @if ($customerPage === 'orders') aria-current="page" @endif>
+                    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7.5 12 3l8 4.5v9L12 21l-8-4.5v-9Z"/><path d="m4.5 7.8 7.5 4.4 7.5-4.4M12 12.2V21"/></svg>
+                    Pesanan Saya
+                </a>
+                <a class="nav-link {{ $customerPage === 'payments' ? 'active' : '' }}" href="{{ route('customer.payments.index') }}" @if ($customerPage === 'payments') aria-current="page" @endif>
+                    <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M3 10h18M7 15h3"/></svg>
+                    Pembayaran
+                </a>
+            @else
+                <a class="nav-link active" href="{{ route('dashboard') }}" aria-current="page">
+                    <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3.5" y="3.5" width="7" height="7" rx="1.5"/><rect x="13.5" y="3.5" width="7" height="5" rx="1.5"/><rect x="13.5" y="11.5" width="7" height="9" rx="1.5"/><rect x="3.5" y="13.5" width="7" height="7" rx="1.5"/></svg>
+                    Dashboard
+                </a>
+            @endif
             @if (auth()->user()->role?->role_name === 'Admin')
                 <a class="nav-link" href="{{ route('users.index') }}">
                     <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="9" cy="8" r="3.5"/><path d="M3 20v-1a6 6 0 0 1 12 0v1M16 5.2a3.5 3.5 0 0 1 0 6.6M18 14a5 5 0 0 1 3 4.6V20"/></svg>
@@ -38,6 +53,10 @@
                 <a class="nav-link" href="{{ route('services.index') }}">
                     <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 19.5 12 4l8 15.5H4Z"/><path d="M8 15h8M10 11h4"/></svg>
                     Layanan
+                </a>
+                <a class="nav-link" href="{{ route('admin.payment-settings.edit') }}">
+                    <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M3 10h18M7 15h3"/></svg>
+                    Pengaturan Pembayaran
                 </a>
             @endif
             @if (auth()->user()->role?->role_name === 'Owner')
@@ -68,14 +87,44 @@
 
     <main class="main-content">
         <header class="topbar">
-            <div class="breadcrumbs"><span>Halaman</span><span aria-hidden="true">/</span><strong>Dashboard</strong></div>
-            <form method="POST" action="{{ route('logout') }}">
-                @csrf
-                <button class="button button-outline logout-button" type="submit">
-                    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M10 17l5-5-5-5M15 12H3m9-8h6a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2h-6"/></svg>
-                    Keluar
-                </button>
-            </form>
+            <div class="breadcrumbs"><span>Halaman</span><span aria-hidden="true">/</span><strong>{{ $isCustomer ? match ($customerPage) { 'orders' => 'Pesanan Saya', 'payments' => 'Pembayaran', default => 'Pesanan Baru' } : 'Dashboard' }}</strong></div>
+            <div class="topbar-actions">
+                @if ($isCustomer)
+                    <details class="customer-notification-menu">
+                        <summary class="customer-notification-toggle" aria-label="Notifikasi pembaruan status pesanan{{ $statusUpdates->isNotEmpty() ? ', '.$statusUpdates->count().' pembaruan' : '' }}">
+                            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9M10 21h4"/></svg>
+                            @if ($statusUpdates->isNotEmpty())
+                                <span class="customer-notification-count">{{ $statusUpdates->count() }}</span>
+                            @endif
+                        </summary>
+                        <div class="customer-notification-popover">
+                            <div class="customer-notification-popover-heading">
+                                <strong>Notifikasi</strong>
+                                <span>Pembaruan status pesanan</span>
+                            </div>
+                            @forelse ($statusUpdates as $statusUpdate)
+                                <article class="customer-notification-item">
+                                    <div>
+                                        <strong>{{ $statusUpdate->order->order_code }}</strong>
+                                        <span class="status-badge status-{{ \Illuminate\Support\Str::slug($statusUpdate->status) }}">{{ $statusUpdate->status }}</span>
+                                    </div>
+                                    <p>{{ $statusUpdate->description }}</p>
+                                    <time datetime="{{ $statusUpdate->changed_at->toIso8601String() }}">{{ $statusUpdate->changed_at->locale('id')->translatedFormat('d F Y, H:i') }}</time>
+                                </article>
+                            @empty
+                                <p class="customer-notification-empty">Belum ada pembaruan status pesanan.</p>
+                            @endforelse
+                        </div>
+                    </details>
+                @endif
+                <form method="POST" action="{{ route('logout') }}">
+                    @csrf
+                    <button class="button button-outline logout-button" type="submit">
+                        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M10 17l5-5-5-5M15 12H3m9-8h6a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2h-6"/></svg>
+                        Keluar
+                    </button>
+                </form>
+            </div>
         </header>
 
         <div class="page-content">
@@ -83,9 +132,9 @@
                 <div class="welcome-copy">
                     <span class="eyebrow"><span class="eyebrow-dot"></span> @if ($isCustomer) AREA PELANGGAN @else RUANG KERJA BU YASRI @endif</span>
                     <h1>Selamat datang,<br><span>{{ auth()->user()->name }}!</span></h1>
-                    <p>@if ($isCustomer) Buat pesanan jahit atau permak dan pantau perkembangannya dari sini. @else Senang melihat Anda kembali. Semoga hari ini penuh karya dan jahitan yang indah. @endif</p>
-                    <a class="button button-light" href="{{ $isCustomer ? '#buat-pesanan' : '#ringkasan' }}">
-                        {{ $isCustomer ? 'Buat pesanan' : 'Lihat ringkasan' }}
+                    <p>@if ($isCustomer) {{ match ($customerPage) { 'orders' => 'Pantau status dan riwayat pesanan jahit atau permak Anda di sini.', 'payments' => 'Pilih cara pembayaran untuk pesanan Anda.', default => 'Isi detail jahitan atau permak yang Anda perlukan.' } }} @else Senang melihat Anda kembali. Semoga hari ini penuh karya dan jahitan yang indah. @endif</p>
+                    <a class="button button-light" href="{{ $isCustomer ? route(match ($customerPage) { 'orders' => 'customer.orders.create', 'payments' => 'customer.orders.index', default => 'customer.orders.index' }) : '#ringkasan' }}">
+                        {{ $isCustomer ? match ($customerPage) { 'orders' => 'Pesanan baru', 'payments' => 'Pesanan saya', default => 'Pesanan saya' } : 'Lihat ringkasan' }}
                         <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 10l5 5 5-5"/></svg>
                     </a>
                 </div>
@@ -111,13 +160,8 @@
                 @if (session('success'))
                     <div class="alert-success reveal" role="status">{{ session('success') }}</div>
                 @endif
-                @foreach ($completedOrders as $completedOrder)
-                    <div class="alert-success customer-completion-notice reveal" role="status">
-                        <strong>Pesanan siap diambil!</strong>
-                        Pesanan {{ $completedOrder->order_code }} sudah selesai. Silakan hubungi kami untuk pengambilan.
-                    </div>
-                @endforeach
 
+                @if ($customerPage === 'create')
                 <section class="table-card customer-order-create-card reveal" id="buat-pesanan">
                     <div class="table-card-heading">
                         <div><h2>Buat pesanan baru</h2><p>Isi detail jahitan atau permak yang Anda perlukan</p></div>
@@ -163,7 +207,7 @@
                                 <label for="customer_payment_method">Jenis pembayaran</label>
                                 <select id="customer_payment_method" name="payment_method" required>
                                     <option value="">Pilih jenis pembayaran</option>
-                                    @foreach (\App\Models\Order::PAYMENT_METHODS as $paymentMethod)
+                                    @foreach (\App\Models\Order::CUSTOMER_PAYMENT_METHODS as $paymentMethod)
                                         <option value="{{ $paymentMethod }}" @selected(old('payment_method') === $paymentMethod)>{{ $paymentMethod }}</option>
                                     @endforeach
                                 </select>
@@ -181,10 +225,93 @@
                         <button class="button button-primary" type="submit" @disabled($services->isEmpty())>Kirim pesanan <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h14m-6-6 6 6-6 6"/></svg></button>
                     </form>
                 </section>
+                @endif
 
+                @if ($customerPage === 'payments')
+                <section class="customer-payment-note reveal" role="note">
+                    <span class="customer-notification-icon" aria-hidden="true">i</span>
+                    <p><strong>Pembayaran belum diproses otomatis.</strong> Pilihan metode hanya dicatat pada pesanan. Untuk QRIS atau e-wallet/bank yang mendukung QRIS, pindai kode merchant berikut menggunakan aplikasi pembayaran. Transfer bank perlu dikonfirmasi dengan petugas. Pembayaran tunai dilakukan langsung kepada petugas.</p>
+                </section>
+                @if ($customerOrders->contains('payment_method', 'QRIS') && $paymentSetting?->qr_image_path)
+                    <section class="customer-merchant-qr reveal" aria-labelledby="customer-merchant-qr-title">
+                        <div>
+                            <span class="section-kicker">PEMBAYARAN QRIS</span>
+                            <h2 id="customer-merchant-qr-title">Pindai QRIS merchant</h2>
+                            <p>Buka aplikasi e-wallet atau mobile banking yang mendukung QRIS, lalu pindai kode ini. Pastikan nama merchant dan nominal sudah benar sebelum membayar.</p>
+                        </div>
+                        <img src="{{ route('payment.qr') }}" alt="Kode QRIS merchant untuk pembayaran Tunggu Jahit Bu Yasri" width="320" height="320">
+                    </section>
+                @elseif ($customerOrders->contains('payment_method', 'QRIS'))
+                    <div class="customer-payment-note customer-payment-unavailable reveal" role="status">
+                        <span class="customer-notification-icon" aria-hidden="true">!</span>
+                        <p><strong>QRIS belum tersedia.</strong> Admin belum memasang kode QRIS merchant. Silakan hubungi petugas atau pilih pembayaran tunai.</p>
+                    </div>
+                @endif
+                <section class="table-card customer-payment-card reveal">
+                    <div class="table-card-heading">
+                        <div><h2>Pilih metode pembayaran</h2><p>Pilih Tunai atau e-payment QRIS untuk setiap pesanan</p></div>
+                        <span class="table-sewing-mark" aria-hidden="true">✧</span>
+                    </div>
+                    <div class="table-scroll">
+                        <table>
+                            <thead><tr><th scope="col">Kode pesanan</th><th scope="col">Tanggal</th><th scope="col">Total</th><th scope="col">Metode pembayaran</th><th scope="col">Simpan</th></tr></thead>
+                            <tbody>
+                                @forelse ($customerOrders as $order)
+                                    <tr>
+                                        <td><strong class="order-code">{{ $order->order_code }}</strong><small class="order-queue">{{ $order->queue_number }}</small></td>
+                                        <td>{{ $order->order_date->format('d/m/Y') }}</td>
+                                        <td class="order-amount">Rp {{ number_format((float) $order->total_price, 0, ',', '.') }}</td>
+                                        <td>
+                                            <form id="payment-form-{{ $order->id }}" class="customer-payment-form" method="POST" action="{{ route('customer.payments.update', $order->id) }}">
+                                                @csrf
+                                                @method('PATCH')
+                                                <label class="visually-hidden" for="payment-method-{{ $order->id }}">Metode pembayaran {{ $order->order_code }}</label>
+                                                <select id="payment-method-{{ $order->id }}" name="payment_method" required>
+                                                    @if (! $order->payment_method)
+                                                        <option value="" selected disabled>Pilih metode</option>
+                                                    @endif
+                                                    @foreach (\App\Models\Order::CUSTOMER_PAYMENT_METHODS as $paymentMethod)
+                                                        <option value="{{ $paymentMethod }}" @selected($order->payment_method === $paymentMethod)>{{ match ($paymentMethod) { 'Tunai' => 'Tunai (Cash)', 'Transfer Bank' => 'Transfer Bank (E-Payment)', default => 'QRIS (E-Payment)' } }}</option>
+                                                    @endforeach
+                                                </select>
+                                            </form>
+                                        </td>
+                                        <td><button class="button button-primary customer-payment-save" type="submit" form="payment-form-{{ $order->id }}">Simpan</button></td>
+                                    </tr>
+                                @empty
+                                    <tr><td class="empty-state" colspan="5"><span aria-hidden="true">✂</span><strong>Belum ada pesanan</strong><small>Buat pesanan terlebih dahulu untuk memilih metode pembayaran.</small></td></tr>
+                                @endforelse
+                            </tbody>
+                        </table>
+                    </div>
+                    @if ($customerOrders->hasPages())
+                        <div class="pagination-wrap">{{ $customerOrders->links() }}</div>
+                    @endif
+                </section>
+                @endif
+
+                @if ($customerPage === 'orders')
+                @if ($statusUpdates->isNotEmpty())
+                    <section class="customer-order-notifications reveal" aria-labelledby="customer-order-notifications-title">
+                        <div class="customer-order-notifications-heading">
+                            <span class="customer-notification-icon" aria-hidden="true">✦</span>
+                            <div><h2 id="customer-order-notifications-title">Pembaruan pesanan</h2><p>Informasi terbaru tentang perubahan status pesanan Anda</p></div>
+                        </div>
+                        @foreach ($statusUpdates as $statusUpdate)
+                            <article class="alert-success customer-status-notification" role="status">
+                                <div>
+                                    <strong>{{ $statusUpdate->order->order_code }}</strong>
+                                    <span class="status-badge status-{{ \Illuminate\Support\Str::slug($statusUpdate->status) }}">{{ $statusUpdate->status }}</span>
+                                </div>
+                                <p>{{ $statusUpdate->description }}</p>
+                                <time datetime="{{ $statusUpdate->changed_at->toIso8601String() }}">{{ $statusUpdate->changed_at->locale('id')->translatedFormat('d F Y, H:i') }}</time>
+                            </article>
+                        @endforeach
+                    </section>
+                @endif
                 <section class="table-card customer-orders-card reveal">
                     <div class="table-card-heading">
-                        <div><h2>Pesanan saya</h2><p>Lima pesanan terbaru Anda</p></div>
+                        <div><h2>Pesanan saya</h2><p>Semua pesanan yang pernah Anda kirim</p></div>
                         <span class="table-sewing-mark" aria-hidden="true">✧</span>
                     </div>
                     <div class="table-scroll">
@@ -209,7 +336,11 @@
                             </tbody>
                         </table>
                     </div>
+                    @if ($customerOrders->hasPages())
+                        <div class="pagination-wrap">{{ $customerOrders->links() }}</div>
+                    @endif
                 </section>
+                @endif
             @endif
 
             @unless ($isCustomer)

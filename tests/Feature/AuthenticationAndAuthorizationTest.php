@@ -260,7 +260,13 @@ class AuthenticationAndAuthorizationTest extends TestCase
     public function test_each_role_can_view_the_dashboard(): void
     {
         foreach (['Admin', 'Staff', 'Customer'] as $roleName) {
-            $this->actingAs($this->createUser($roleName))->get(route('dashboard'))->assertOk();
+            $response = $this->actingAs($this->createUser($roleName))->get(route('dashboard'));
+
+            if ($roleName === 'Customer') {
+                $response->assertRedirect(route('customer.orders.create'));
+            } else {
+                $response->assertOk();
+            }
         }
 
         $this->actingAs($this->createUser('Owner'))
@@ -391,7 +397,7 @@ class AuthenticationAndAuthorizationTest extends TestCase
         ]);
     }
 
-    public function test_customer_can_create_and_view_only_their_own_orders_from_dashboard(): void
+    public function test_customer_has_separate_order_pages_and_sees_only_their_own_order_updates(): void
     {
         $customerUser = $this->createUser('Customer');
         $customer = Customer::create(['user_id' => $customerUser->id]);
@@ -416,11 +422,23 @@ class AuthenticationAndAuthorizationTest extends TestCase
 
         $this->actingAs($customerUser)
             ->get(route('dashboard'))
+            ->assertRedirect(route('customer.orders.create'));
+
+        $this->actingAs($customerUser)
+            ->get(route('customer.orders.create'))
             ->assertOk()
             ->assertSee('Buat pesanan baru')
-            ->assertSee('Pesanan saya')
+            ->assertSee('Pesanan Baru')
+            ->assertSee('Notifikasi pembaruan status pesanan')
+            ->assertDontSee('<h2>Pesanan saya</h2>', false)
             ->assertDontSee($otherOrder->order_code);
 
+        $this->actingAs($customerUser)
+            ->get(route('customer.orders.index'))
+            ->assertOk()
+            ->assertSee('Pesanan saya')
+            ->assertDontSee('Buat pesanan baru')
+            ->assertDontSee($otherOrder->order_code);
         $this->actingAs($customerUser)
             ->post(route('customer.orders.store'), [
                 'customer_id' => $otherCustomer->id,
@@ -432,7 +450,7 @@ class AuthenticationAndAuthorizationTest extends TestCase
                 'estimated_completion_date' => '2026-10-06',
                 'note' => 'Pendekkan lengan',
             ])
-            ->assertRedirect(route('dashboard'));
+            ->assertRedirect(route('customer.orders.create'));
 
         $order = Order::with('details')->where('user_id', $customerUser->id)->firstOrFail();
         $this->assertSame($customer->id, $order->customer_id);
@@ -441,18 +459,93 @@ class AuthenticationAndAuthorizationTest extends TestCase
         $this->assertSame('QRIS', $order->payment_method);
         $this->assertSame('Kemeja lengan panjang', $order->details->first()->clothing_type);
 
-        $order->update(['current_status' => 'Selesai']);
+        $this->actingAs($customerUser)
+            ->get(route('customer.payments.index'))
+            ->assertOk()
+            ->assertSee('Pembayaran')
+            ->assertSee('Tunai (Cash)')
+            ->assertSee('QRIS (E-Payment)')
+            ->assertSee($order->order_code)
+            ->assertDontSee($otherOrder->order_code);
+
+        $staff = $this->createUser('Staff');
+        $this->actingAs($staff)
+            ->patch(route('orders.status', $order), ['status' => 'Selesai'])
+            ->assertRedirect(route('orders.index'));
 
         $this->actingAs($customerUser)
-            ->get(route('dashboard'))
+            ->get(route('customer.orders.index'))
             ->assertOk()
             ->assertSee($order->order_code)
             ->assertSee('Rp 50.000')
             ->assertSee('QRIS')
-            ->assertSee('Pesanan siap diambil!')
+            ->assertSee('Pembaruan pesanan')
+            ->assertSee('aria-label="Notifikasi pembaruan status pesanan, 1 pembaruan"', false)
+            ->assertSee('Status diubah dari Menunggu menjadi Selesai.')
             ->assertDontSee('Ringkasan usaha')
             ->assertDontSee('Total Pengguna')
             ->assertDontSee($otherOrder->order_code);
+
+        $this->actingAs($customerUser)
+            ->get(route('customer.payments.index'))
+            ->assertOk()
+            ->assertSee('aria-label="Notifikasi pembaruan status pesanan, 1 pembaruan"', false)
+            ->assertSee('Status diubah dari Menunggu menjadi Selesai.');
+    }
+
+    public function test_customer_can_choose_payment_method_only_for_their_own_order(): void
+    {
+        $customerUser = $this->createUser('Customer');
+        $customer = Customer::create(['user_id' => $customerUser->id]);
+        $otherCustomerUser = $this->createUser('Customer');
+        $otherCustomer = Customer::create(['user_id' => $otherCustomerUser->id]);
+        $staff = $this->createUser('Staff');
+
+        $order = Order::create([
+            'order_code' => 'ORD-PAYMENT-OWN',
+            'queue_number' => 'Q-PAYMENT-OWN',
+            'customer_id' => $customer->id,
+            'user_id' => $staff->id,
+            'order_date' => today()->toDateString(),
+            'current_status' => 'Menunggu',
+            'total_items' => 1,
+            'total_price' => 30000,
+        ]);
+        $otherOrder = Order::create([
+            'order_code' => 'ORD-PAYMENT-OTHER',
+            'queue_number' => 'Q-PAYMENT-OTHER',
+            'customer_id' => $otherCustomer->id,
+            'user_id' => $staff->id,
+            'order_date' => today()->toDateString(),
+            'current_status' => 'Menunggu',
+            'total_items' => 1,
+            'total_price' => 40000,
+        ]);
+
+        $this->actingAs($customerUser)
+            ->patch(route('customer.payments.update', $order->id), ['payment_method' => 'QRIS'])
+            ->assertRedirect(route('customer.payments.index'))
+            ->assertSessionHas('success');
+
+        $this->assertDatabaseHas('orders', ['id' => $order->id, 'payment_method' => 'QRIS']);
+
+        $this->actingAs($customerUser)
+            ->patch(route('customer.payments.update', $order->id), ['payment_method' => 'Tunai'])
+            ->assertRedirect(route('customer.payments.index'));
+
+        $this->assertDatabaseHas('orders', ['id' => $order->id, 'payment_method' => 'Tunai']);
+
+        $this->actingAs($customerUser)
+            ->patch(route('customer.payments.update', $otherOrder->id), ['payment_method' => 'QRIS'])
+            ->assertNotFound();
+
+        $this->assertDatabaseHas('orders', ['id' => $otherOrder->id, 'payment_method' => null]);
+
+        $this->actingAs($customerUser)
+            ->from(route('customer.payments.index'))
+            ->patch(route('customer.payments.update', $order->id), ['payment_method' => 'E-Wallet'])
+            ->assertRedirect(route('customer.payments.index'))
+            ->assertSessionHasErrors('payment_method');
     }
 
     public function test_only_customers_can_submit_customer_dashboard_orders(): void
@@ -461,6 +554,13 @@ class AuthenticationAndAuthorizationTest extends TestCase
 
         $this->actingAs($admin)
             ->post(route('customer.orders.store'), [])
+            ->assertForbidden();
+
+        $this->actingAs($admin)->get(route('customer.orders.create'))->assertForbidden();
+        $this->actingAs($admin)->get(route('customer.orders.index'))->assertForbidden();
+        $this->actingAs($admin)->get(route('customer.payments.index'))->assertForbidden();
+        $this->actingAs($admin)
+            ->patch(route('customer.payments.update', 1), ['payment_method' => 'QRIS'])
             ->assertForbidden();
     }
 
