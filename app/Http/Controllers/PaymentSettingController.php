@@ -29,7 +29,7 @@ class PaymentSettingController extends Controller
 
         $newPath = $validated['qr_image']->store('payment', 'local');
         if (! $newPath) {
-            throw new RuntimeException('QRIS merchant image could not be stored.');
+            throw new RuntimeException('DANA payment image could not be stored.');
         }
 
         $oldPath = null;
@@ -51,7 +51,7 @@ class PaymentSettingController extends Controller
         $this->deletePreviousImage($oldPath, $newPath);
 
         return redirect()->route('admin.payment-settings.edit')
-            ->with('success', 'QRIS merchant berhasil diperbarui.');
+            ->with('success', 'Gambar pembayaran DANA berhasil diperbarui.');
     }
 
     public function destroy(): RedirectResponse
@@ -59,7 +59,7 @@ class PaymentSettingController extends Controller
         $setting = PaymentSetting::query()->find(1);
         if (! $setting) {
             return redirect()->route('admin.payment-settings.edit')
-                ->with('success', 'Belum ada QRIS merchant yang dipasang.');
+                ->with('success', 'Belum ada gambar pembayaran DANA yang dipasang.');
         }
 
         $oldPath = $setting->qr_image_path;
@@ -67,14 +67,14 @@ class PaymentSettingController extends Controller
         $this->deletePreviousImage($oldPath, null);
 
         return redirect()->route('admin.payment-settings.edit')
-            ->with('success', 'QRIS merchant berhasil dihapus.');
+            ->with('success', 'Gambar pembayaran DANA berhasil dihapus.');
     }
 
     public function showQr(): \Symfony\Component\HttpFoundation\StreamedResponse
     {
         $path = PaymentSetting::query()->find(1)?->qr_image_path;
         if (! $path || ! Storage::disk('local')->exists($path)) {
-            abort(404, 'QRIS merchant belum tersedia.');
+            abort(404, 'Gambar pembayaran DANA belum tersedia.');
         }
 
         return Storage::disk('local')->response($path);
@@ -87,7 +87,7 @@ class PaymentSettingController extends Controller
         }
 
         if (! Storage::disk('local')->delete($oldPath)) {
-            Log::warning('Could not remove the previous merchant QRIS image.', [
+            Log::warning('Could not remove the previous DANA payment image.', [
                 'path' => $oldPath,
             ]);
         }

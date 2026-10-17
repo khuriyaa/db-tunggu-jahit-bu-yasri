@@ -16,7 +16,7 @@ class PaymentSettingsTest extends TestCase
 {
     use RefreshDatabase;
 
-    public function test_admin_can_upload_replace_and_remove_merchant_qr_and_customer_can_view_it(): void
+    public function test_admin_can_upload_replace_and_remove_dana_image_and_customer_can_view_it(): void
     {
         Storage::fake('local');
 
@@ -24,13 +24,13 @@ class PaymentSettingsTest extends TestCase
         $customerUser = $this->createUser('Customer');
         $customer = Customer::create(['user_id' => $customerUser->id]);
         $order = Order::create([
-            'order_code' => 'ORD-QRIS-001',
-            'queue_number' => 'Q-QRIS-001',
+            'order_code' => 'ORD-DANA-001',
+            'queue_number' => 'Q-DANA-001',
             'customer_id' => $customer->id,
             'user_id' => $admin->id,
             'order_date' => today()->toDateString(),
             'current_status' => 'Menunggu',
-            'payment_method' => 'QRIS',
+            'payment_method' => 'DANA',
             'total_items' => 1,
             'total_price' => 45000,
         ]);
@@ -42,7 +42,7 @@ class PaymentSettingsTest extends TestCase
 
         $this->actingAs($admin)
             ->post(route('admin.payment-settings.update'), [
-                'qr_image' => UploadedFile::fake()->image('merchant-qris.png'),
+                'qr_image' => UploadedFile::fake()->image('merchant-dana.png'),
             ])
             ->assertRedirect(route('admin.payment-settings.edit'))
             ->assertSessionHas('success');
@@ -66,7 +66,7 @@ class PaymentSettingsTest extends TestCase
             ->assertDontSee(route('payment.qr'), false);
 
         $this->actingAs($customerUser)
-            ->patch(route('customer.payments.update', $order->id), ['payment_method' => 'QRIS'])
+            ->patch(route('customer.payments.update', $order->id), ['payment_method' => 'DANA'])
             ->assertRedirect(route('customer.payments.index'));
 
         $this->actingAs($customerUser)
@@ -76,7 +76,7 @@ class PaymentSettingsTest extends TestCase
 
         $this->actingAs($admin)
             ->post(route('admin.payment-settings.update'), [
-                'qr_image' => UploadedFile::fake()->image('merchant-qris-new.png'),
+                'qr_image' => UploadedFile::fake()->image('merchant-dana-new.png'),
             ])
             ->assertRedirect(route('admin.payment-settings.edit'));
 
@@ -95,7 +95,7 @@ class PaymentSettingsTest extends TestCase
         $this->actingAs($customerUser)->get(route('payment.qr'))->assertNotFound();
     }
 
-    public function test_only_admin_can_manage_merchant_qr_and_only_admin_or_customer_can_view_it(): void
+    public function test_only_admin_can_manage_dana_image_and_only_admin_or_customer_can_view_it(): void
     {
         Storage::fake('local');
 

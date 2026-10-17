@@ -96,13 +96,13 @@
                             @error('email')<span class="field-error">{{ $message }}</span>@enderror
                         </div>
                         <div class="form-field">
-                            <label for="phone_number">Nomor telepon <span>(opsional)</span></label>
-                            <input id="phone_number" name="phone_number" type="tel" maxlength="30" value="{{ old('phone_number') }}" autocomplete="tel">
+                            <label for="phone_number">Nomor telepon <span>(wajib untuk Customer)</span></label>
+                            <input id="phone_number" name="phone_number" type="tel" maxlength="30" value="{{ old('phone_number') }}" autocomplete="tel" data-customer-role-phone>
                             @error('phone_number')<span class="field-error">{{ $message }}</span>@enderror
                         </div>
                         <div class="form-field">
                             <label for="role_id">Role akun</label>
-                            <select id="role_id" name="role_id" required>
+                            <select id="role_id" name="role_id" required data-customer-role-select data-target="phone_number">
                                 <option value="">Pilih role</option>
                                 @foreach ($roles as $role)
                                     <option value="{{ $role->id }}" @selected(old('role_id') == $role->id)>{{ $role->role_name }}</option>
@@ -186,11 +186,16 @@
                                                     @error('email', $editBag)<span class="field-error">{{ $message }}</span>@enderror
                                                 </div>
                                                 <div class="form-field">
+                                                    <label for="edit_phone_number_{{ $user->id }}">Nomor telepon <span>(wajib untuk Customer)</span></label>
+                                                    <input id="edit_phone_number_{{ $user->id }}" name="phone_number" type="tel" maxlength="30" value="{{ $errors->hasBag($editBag) ? old('phone_number', $user->phone_number) : $user->phone_number }}" autocomplete="tel" data-customer-role-phone>
+                                                    @error('phone_number', $editBag)<span class="field-error">{{ $message }}</span>@enderror
+                                                </div>
+                                                <div class="form-field">
                                                     <label for="edit_role_{{ $user->id }}">Role akun</label>
                                                     @if ($user->id === auth()->id())
                                                         <input type="hidden" name="role_id" value="{{ $user->role_id }}">
                                                     @endif
-                                                    <select id="edit_role_{{ $user->id }}" @if ($user->id === auth()->id()) disabled @else name="role_id" @endif required>
+                                                    <select id="edit_role_{{ $user->id }}" data-customer-role-select data-target="edit_phone_number_{{ $user->id }}" @if ($user->id === auth()->id()) disabled @else name="role_id" @endif required>
                                                         @if ($user->role && ! $roles->contains(fn ($role) => $role->id === $user->role_id))
                                                             <option value="{{ $user->role_id }}" @selected((string) $selectedEditRoleId === (string) $user->role_id)>{{ $user->role->role_name }}</option>
                                                         @endif

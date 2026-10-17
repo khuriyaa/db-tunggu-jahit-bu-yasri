@@ -1,4 +1,23 @@
 (() => {
+    document.querySelectorAll('[data-toast]').forEach((toast) => {
+        let removalTimer;
+
+        const dismissToast = () => {
+            if (toast.classList.contains('is-dismissed')) {
+                return;
+            }
+
+            toast.classList.add('is-dismissed');
+            removalTimer = window.setTimeout(() => toast.remove(), 250);
+        };
+
+        toast.querySelector('.toast-dismiss')?.addEventListener('click', () => {
+            window.clearTimeout(removalTimer);
+            dismissToast();
+        });
+        window.setTimeout(dismissToast, 5000);
+    });
+
     document.querySelectorAll('form[data-confirm]').forEach((form) => {
         form.addEventListener('submit', (event) => {
             if (!window.confirm(form.dataset.confirm)) {
@@ -24,6 +43,24 @@
         });
     });
 
+    document.querySelectorAll('input[type="tel"][inputmode="numeric"]').forEach((input) => {
+        input.addEventListener('input', () => {
+            const cursorPosition = input.selectionStart;
+            const numericValue = input.value.replace(/\D/g, '');
+
+            if (numericValue === input.value) {
+                return;
+            }
+
+            const numericCursorPosition = cursorPosition === null
+                ? numericValue.length
+                : input.value.slice(0, cursorPosition).replace(/\D/g, '').length;
+
+            input.value = numericValue;
+            input.setSelectionRange(numericCursorPosition, numericCursorPosition);
+        });
+    });
+
     document.querySelectorAll('[data-customer-select]').forEach((select) => {
         const fields = document.getElementById(select.dataset.target);
 
@@ -35,13 +72,28 @@
             const creatingCustomer = select.value === '';
             fields.hidden = !creatingCustomer;
             fields.querySelectorAll('input').forEach((input) => {
-                input.required = creatingCustomer && input.id !== 'new_customer_phone';
+                input.required = creatingCustomer;
                 input.disabled = !creatingCustomer;
             });
         };
 
         select.addEventListener('change', updateCustomerFields);
         updateCustomerFields();
+    });
+
+    document.querySelectorAll('[data-customer-role-select]').forEach((select) => {
+        const phoneInput = document.getElementById(select.dataset.target);
+
+        if (!phoneInput) {
+            return;
+        }
+
+        const updatePhoneRequirement = () => {
+            phoneInput.required = select.selectedOptions[0]?.textContent.trim() === 'Customer';
+        };
+
+        select.addEventListener('change', updatePhoneRequirement);
+        updatePhoneRequirement();
     });
 
     document.querySelectorAll('[data-password-toggle]').forEach((button) => {

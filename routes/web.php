@@ -4,6 +4,7 @@ use App\Http\Controllers\Auth\LoginController;
 use App\Http\Controllers\Auth\RegistrationController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\OrderController;
+use App\Http\Controllers\OrderHistoryController;
 use App\Http\Controllers\OwnerDashboardController;
 use App\Http\Controllers\OwnerReportController;
 use App\Http\Controllers\PaymentSettingController;
@@ -35,6 +36,10 @@ Route::middleware('auth')->group(function () {
         ->middleware('role:Owner')
         ->name('owner.reports');
 
+    Route::get('/order-history', [OrderHistoryController::class, 'index'])
+        ->middleware('role:Admin,Owner')
+        ->name('orders.history');
+
     Route::middleware('role:Customer')->group(function () {
         Route::get('/my-orders/create', [DashboardController::class, 'createCustomerOrder'])
             ->name('customer.orders.create');
@@ -44,6 +49,8 @@ Route::middleware('auth')->group(function () {
             ->name('customer.payments.index');
         Route::patch('/my-orders/{order}/payment', [OrderController::class, 'updateCustomerPayment'])
             ->name('customer.payments.update');
+        Route::post('/my-orders/{order}/payment/report', [OrderController::class, 'reportCustomerPayment'])
+            ->name('customer.payments.report');
     });
 
     Route::middleware('role:Admin,Staff')->group(function () {
@@ -54,6 +61,8 @@ Route::middleware('auth')->group(function () {
     });
 
     Route::middleware('role:Admin')->group(function () {
+        Route::patch('/admin/orders/{order}/payment/verify', [OrderController::class, 'verifyCustomerPayment'])
+            ->name('admin.orders.payment.verify');
         Route::get('/admin/payment-settings', [PaymentSettingController::class, 'edit'])
             ->name('admin.payment-settings.edit');
         Route::post('/admin/payment-settings', [PaymentSettingController::class, 'update'])

@@ -42,9 +42,9 @@ class OrderController extends Controller
         $validated = $request->validate([
             'customer_id' => ['nullable', 'required_without:new_customer_name', 'integer', 'exists:customers,id'],
             'new_customer_name' => ['nullable', 'required_without:customer_id', 'string', 'max:255'],
-            'new_customer_email' => ['nullable', 'required_with:new_customer_name', 'email', 'max:255', 'unique:users,email'],
-            'new_customer_password' => ['nullable', 'required_with:new_customer_name', 'string', 'min:8', 'max:255'],
-            'new_customer_phone' => ['nullable', 'string', 'max:30'],
+            'new_customer_email' => ['required_with:new_customer_name', 'email', 'max:255', 'unique:users,email'],
+            'new_customer_password' => ['required_with:new_customer_name', 'string', 'min:8', 'max:255'],
+            'new_customer_phone' => ['required_with:new_customer_name', 'string', 'regex:/^[0-9]+$/', 'max:30'],
             'service_id' => ['required', 'integer', 'exists:services,id'],
             'clothing_type' => ['required', 'string', 'max:120'],
             'quantity' => ['required', 'integer', 'min:1', 'max:1000'],
@@ -81,12 +81,13 @@ class OrderController extends Controller
             $this->createOrder($validated, $customerId);
         });
 
-        return redirect()->route('orders.index')->with('success', 'Pesanan berhasil ditambahkan.');
+        return redirect()->route('orders.index')->with('success', 'Pesanan telah dibuat.');
     }
 
     public function storeForCustomer(Request $request): RedirectResponse
     {
         $validated = $request->validate([
+            'phone_number' => ['required', 'string', 'regex:/^[0-9]+$/', 'max:30'],
             'service_id' => ['required', 'integer', 'exists:services,id'],
             'clothing_type' => ['required', 'string', 'max:120'],
             'quantity' => ['required', 'integer', 'min:1', 'max:1000'],
@@ -102,9 +103,12 @@ class OrderController extends Controller
             abort(403, 'Akun Customer belum memiliki profil pelanggan.');
         }
 
-        DB::transaction(fn () => $this->createOrder($validated, $customer->id));
+        DB::transaction(function () use ($request, $validated, $customer): void {
+            $request->user()->update(['phone_number' => $validated['phone_number']]);
+            $this->createOrder($validated, $customer->id);
+        });
 
-        return redirect()->route('customer.orders.create')->with('success', 'Pesanan berhasil dikirim dan sedang menunggu konfirmasi.');
+        return redirect()->route('customer.orders.create')->with('success', 'Pesanan telah dibuat.');
     }
 
     public function updateCustomerPayment(Request $request, int $orderId): RedirectResponse
@@ -123,10 +127,67 @@ class OrderController extends Controller
             ->where('customer_id', $customer->id)
             ->findOrFail($orderId);
 
+        if ($order->payment_reported_at || $order->payment_verified_at) {
+            throw ValidationException::withMessages([
+                'payment_method' => 'Metode pembayaran tidak dapat diubah setelah pembayaran dilaporkan.',
+            ]);
+        }
+
         $order->update(['payment_method' => $validated['payment_method']]);
 
         return redirect()->route('customer.payments.index')
             ->with('success', "Metode pembayaran pesanan {$order->order_code} berhasil disimpan. Pembayaran belum terverifikasi otomatis.");
+    }
+
+    public function reportCustomerPayment(Request $request, int $orderId): RedirectResponse
+    {
+        $customer = $request->user()->customer;
+
+        if (! $customer) {
+            abort(403, 'Akun Customer belum memiliki profil pelanggan.');
+        }
+
+        DB::transaction(function () use ($customer, $orderId): void {
+            $order = Order::query()
+                ->where('customer_id', $customer->id)
+                ->lockForUpdate()
+                ->findOrFail($orderId);
+
+            if ($order->payment_reported_at || $order->payment_verified_at) {
+                throw ValidationException::withMessages([
+                    'payment' => 'Pembayaran pesanan ini sudah dilaporkan.',
+                ]);
+            }
+
+            if (! $order->payment_method) {
+                throw ValidationException::withMessages([
+                    'payment' => 'Pilih metode pembayaran sebelum melaporkan pembayaran.',
+                ]);
+            }
+
+            $order->update(['payment_reported_at' => now()]);
+        });
+
+        return redirect()->route('customer.payments.index')
+            ->with('success', 'Laporan pembayaran berhasil dikirim. Admin akan memeriksa pembayaran Anda.');
+    }
+
+    public function verifyCustomerPayment(Order $order): RedirectResponse
+    {
+        DB::transaction(function () use ($order): void {
+            $lockedOrder = Order::query()->whereKey($order->id)->lockForUpdate()->firstOrFail();
+
+            if (! $lockedOrder->payment_reported_at || $lockedOrder->payment_verified_at) {
+                throw ValidationException::withMessages([
+                    'payment' => 'Laporan pembayaran ini sudah diproses atau tidak tersedia.',
+                ]);
+            }
+
+            $lockedOrder->update(['payment_verified_at' => now()]);
+        });
+
+        return redirect()->route('dashboard')
+            ->with('success', "Pembayaran pesanan {$order->order_code} berhasil dikonfirmasi.");
     }
 
     public function updateStatus(Request $request, Order $order): RedirectResponse

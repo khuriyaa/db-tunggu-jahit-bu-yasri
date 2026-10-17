@@ -54,7 +54,7 @@ class OwnerReportsTest extends TestCase
         $customer = Customer::create(['user_id' => $customerUser->id]);
         $monthStart = today()->startOfMonth();
 
-        $todayOrder = $this->createOrder($staff, $customer, today()->toDateString(), 'Menunggu', 50000, 'QRIS');
+        $todayOrder = $this->createOrder($staff, $customer, today()->toDateString(), 'Menunggu', 50000, 'GoPay');
         $this->createOrder($staff, $customer, today()->subDay()->toDateString(), 'Diproses', 75000, null);
         $this->createOrder($staff, $customer, $monthStart->copy()->subDay()->toDateString(), 'Selesai', 20000, null);
 

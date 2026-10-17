@@ -73,10 +73,10 @@
                         <p class="error-message" role="alert">{{ $message }}</p>
                     @enderror
 
-                    <label for="phone_number">Nomor telepon <span>(opsional)</span></label>
+                    <label for="phone_number">Nomor telepon</label>
                     <div class="input-wrap @error('phone_number') input-invalid @enderror">
                         <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 3h10a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2Zm4 15h2"/></svg>
-                        <input id="phone_number" name="phone_number" type="tel" value="{{ old('phone_number') }}" placeholder="08xxxxxxxxxx" autocomplete="tel">
+                        <input id="phone_number" name="phone_number" type="tel" value="{{ old('phone_number') }}" placeholder="08xxxxxxxxxx" required autocomplete="tel">
                     </div>
                     @error('phone_number')
                         <p class="error-message" role="alert">{{ $message }}</p>

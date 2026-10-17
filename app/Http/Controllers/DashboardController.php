@@ -47,9 +47,25 @@ class DashboardController extends Controller
             'order_value' => (float) $totals->order_value,
         ];
 
+        $paymentNotificationsQuery = Order::query()
+            ->whereNotNull('payment_reported_at')
+            ->whereNull('payment_verified_at');
+        $paymentNotificationsCount = $user->role?->role_name === 'Admin'
+            ? (clone $paymentNotificationsQuery)->count()
+            : 0;
+        $paymentNotifications = $user->role?->role_name === 'Admin'
+            ? $paymentNotificationsQuery
+                ->with('customer.user')
+                ->latest('payment_reported_at')
+                ->limit(10)
+                ->get()
+            : collect();
+
         return view('dashboard', [
             'stats' => $stats,
             'isCustomer' => false,
+            'paymentNotifications' => $paymentNotifications,
+            'paymentNotificationsCount' => $paymentNotificationsCount,
         ]);
     }
 

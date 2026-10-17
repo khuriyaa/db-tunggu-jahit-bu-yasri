@@ -76,6 +76,18 @@ class AuthenticationAndAuthorizationTest extends TestCase
 
         $this->assertGuest();
         $this->assertSame(1, User::where('email', 'already-used@example.com')->count());
+
+        $this->from(route('register'))
+            ->post(route('register.store'), [
+                'name' => 'Customer Tanpa Telepon',
+                'email' => 'customer-tanpa-telepon@example.com',
+                'password' => 'customer-password',
+                'password_confirmation' => 'customer-password',
+            ])
+            ->assertRedirect(route('register'))
+            ->assertSessionHasErrors('phone_number');
+
+        $this->assertDatabaseMissing('users', ['email' => 'customer-tanpa-telepon@example.com']);
     }
 
     public function test_invalid_credentials_do_not_authenticate_the_user(): void
@@ -134,9 +146,20 @@ class AuthenticationAndAuthorizationTest extends TestCase
         );
 
         $this->actingAs($admin)
+            ->from(route('users.manage.edit'))
             ->patch(route('users.update', $user), [
                 'name' => 'Nama Baru',
                 'email' => 'owner-baru@example.com',
+                'role_id' => $customerRole->id,
+            ])
+            ->assertRedirect(route('users.manage.edit'))
+            ->assertSessionHasErrors(['phone_number'], null, 'updateUser'.$user->id);
+
+        $this->actingAs($admin)
+            ->patch(route('users.update', $user), [
+                'name' => 'Nama Baru',
+                'email' => 'owner-baru@example.com',
+                'phone_number' => '08123456789',
                 'role_id' => $customerRole->id,
             ])
             ->assertRedirect(route('users.manage.edit'))
@@ -145,6 +168,7 @@ class AuthenticationAndAuthorizationTest extends TestCase
         $user->refresh()->load('role', 'customer');
         $this->assertSame('Nama Baru', $user->name);
         $this->assertSame('owner-baru@example.com', $user->email);
+        $this->assertSame('08123456789', $user->phone_number);
         $this->assertSame('Customer', $user->role->role_name);
         $this->assertNotNull($user->customer);
     }
@@ -227,6 +251,22 @@ class AuthenticationAndAuthorizationTest extends TestCase
             ->assertSessionHasErrors('role_id');
 
         $this->assertDatabaseMissing('users', ['email' => 'staff-baru@example.com']);
+
+        $customerRole = Role::where('role_name', 'Customer')->firstOrFail();
+        $this->actingAs($admin)
+            ->from(route('users.index'))
+            ->post(route('users.store'), [
+                'name' => 'Customer Tanpa Telepon',
+                'email' => 'customer-tanpa-telepon-admin@example.com',
+                'role_id' => $customerRole->id,
+                'password' => 'initial-password',
+                'password_confirmation' => 'initial-password',
+            ])
+            ->assertRedirect(route('users.index'))
+            ->assertSessionHasErrors('phone_number');
+
+        $this->assertDatabaseMissing('users', ['email' => 'customer-tanpa-telepon-admin@example.com']);
+
         $this->actingAs($admin)
             ->get(route('users.index'))
             ->assertOk()
@@ -331,7 +371,8 @@ class AuthenticationAndAuthorizationTest extends TestCase
                 'estimated_completion_date' => '2026-10-06',
                 'note' => 'Kecilkan bagian pinggang',
             ])
-            ->assertRedirect(route('orders.index'));
+            ->assertRedirect(route('orders.index'))
+            ->assertSessionHas('success', 'Pesanan telah dibuat.');
 
         $order = Order::with('details')->firstOrFail();
         $this->assertSame(60000.0, (float) $order->total_price);
@@ -360,7 +401,39 @@ class AuthenticationAndAuthorizationTest extends TestCase
             ->assertOk()
             ->assertSee($order->order_code)
             ->assertSee('Celana bahan')
+            ->assertSee('value="GoPay"', false)
+            ->assertSee('value="Tunai"', false)
+            ->assertDontSee('value="DANA"', false)
             ->assertSee('Diproses');
+    }
+
+    public function test_admin_sees_success_message_after_creating_order(): void
+    {
+        $admin = $this->createUser('Admin');
+        $customerUser = $this->createUser('Customer');
+        $customer = Customer::create(['user_id' => $customerUser->id]);
+        $service = Service::create([
+            'service_name' => 'Jahit Kemeja',
+            'service_type' => 'Jahit',
+            'base_price' => 90000,
+            'estimated_days' => 4,
+        ]);
+
+        $this->actingAs($admin)
+            ->post(route('orders.store'), [
+                'customer_id' => $customer->id,
+                'service_id' => $service->id,
+                'clothing_type' => 'Kemeja',
+                'quantity' => 1,
+                'order_date' => '2026-10-04',
+            ])
+            ->assertRedirect(route('orders.index'))
+            ->assertSessionHas('success', 'Pesanan telah dibuat.');
+
+        $this->get(route('orders.index'))
+            ->assertOk()
+            ->assertSee('Pesanan telah dibuat.')
+            ->assertSee('role="status"', false);
     }
 
     public function test_staff_can_add_a_customer_while_creating_an_order(): void
@@ -372,6 +445,35 @@ class AuthenticationAndAuthorizationTest extends TestCase
             'base_price' => 80000,
             'estimated_days' => 4,
         ]);
+
+        $this->actingAs($staff)
+            ->from(route('orders.index'))
+            ->post(route('orders.store'), [
+                'new_customer_name' => 'Pelanggan Tanpa Kontak',
+                'new_customer_email' => 'pelanggan-tanpa-kontak@example.com',
+                'new_customer_password' => 'password-awal',
+                'service_id' => $service->id,
+                'clothing_type' => 'Rok panjang',
+                'quantity' => 1,
+                'order_date' => '2026-10-04',
+            ])
+            ->assertRedirect(route('orders.index'))
+            ->assertSessionHasErrors(['new_customer_phone']);
+
+        $this->actingAs($staff)
+            ->from(route('orders.index'))
+            ->post(route('orders.store'), [
+                'new_customer_name' => 'Pelanggan Kontak Email',
+                'new_customer_email' => 'pelanggan-kontak-email@example.com',
+                'new_customer_password' => 'password-awal',
+                'new_customer_phone' => 'telepon@example.com',
+                'service_id' => $service->id,
+                'clothing_type' => 'Rok panjang',
+                'quantity' => 1,
+                'order_date' => '2026-10-04',
+            ])
+            ->assertRedirect(route('orders.index'))
+            ->assertSessionHasErrors(['new_customer_phone']);
 
         $this->actingAs($staff)
             ->post(route('orders.store'), [
@@ -430,6 +532,12 @@ class AuthenticationAndAuthorizationTest extends TestCase
             ->assertSee('Buat pesanan baru')
             ->assertSee('Pesanan Baru')
             ->assertSee('Notifikasi pembaruan status pesanan')
+            ->assertSee('Nomor telepon')
+            ->assertSee('name="phone_number"', false)
+            ->assertSee('required', false)
+            ->assertSee('value="GoPay"', false)
+            ->assertSee('value="Tunai"', false)
+            ->assertDontSee('Pilih jenis pembayaran')
             ->assertDontSee('<h2>Pesanan saya</h2>', false)
             ->assertDontSee($otherOrder->order_code);
 
@@ -439,32 +547,69 @@ class AuthenticationAndAuthorizationTest extends TestCase
             ->assertSee('Pesanan saya')
             ->assertDontSee('Buat pesanan baru')
             ->assertDontSee($otherOrder->order_code);
+
+        $this->actingAs($customerUser)
+            ->from(route('customer.orders.create'))
+            ->post(route('customer.orders.store'), [
+                'service_id' => $service->id,
+                'payment_method' => 'GoPay',
+                'clothing_type' => 'Kemeja lengan panjang',
+                'quantity' => 2,
+                'order_date' => '2026-10-04',
+            ])
+            ->assertRedirect(route('customer.orders.create'))
+            ->assertSessionHasErrors('phone_number');
+
+        $this->actingAs($customerUser)
+            ->from(route('customer.orders.create'))
+            ->post(route('customer.orders.store'), [
+                'phone_number' => 'telepon@example.com',
+                'service_id' => $service->id,
+                'payment_method' => 'GoPay',
+                'clothing_type' => 'Kemeja lengan panjang',
+                'quantity' => 2,
+                'order_date' => '2026-10-04',
+            ])
+            ->assertRedirect(route('customer.orders.create'))
+            ->assertSessionHasErrors('phone_number');
+
         $this->actingAs($customerUser)
             ->post(route('customer.orders.store'), [
                 'customer_id' => $otherCustomer->id,
+                'phone_number' => '08123456789',
                 'service_id' => $service->id,
-                'payment_method' => 'QRIS',
+                'payment_method' => 'GoPay',
                 'clothing_type' => 'Kemeja lengan panjang',
                 'quantity' => 2,
                 'order_date' => '2026-10-04',
                 'estimated_completion_date' => '2026-10-06',
                 'note' => 'Pendekkan lengan',
             ])
-            ->assertRedirect(route('customer.orders.create'));
+            ->assertRedirect(route('customer.orders.create'))
+            ->assertSessionHas('success', 'Pesanan telah dibuat.');
+
+        $this->get(route('customer.orders.create'))
+            ->assertOk()
+            ->assertSee('Pesanan telah dibuat.')
+            ->assertSee('role="status"', false);
 
         $order = Order::with('details')->where('user_id', $customerUser->id)->firstOrFail();
         $this->assertSame($customer->id, $order->customer_id);
         $this->assertSame($customerUser->id, $order->user_id);
+        $this->assertSame('08123456789', $customerUser->fresh()->phone_number);
         $this->assertSame(50000.0, (float) $order->total_price);
-        $this->assertSame('QRIS', $order->payment_method);
+        $this->assertSame('GoPay', $order->payment_method);
         $this->assertSame('Kemeja lengan panjang', $order->details->first()->clothing_type);
 
         $this->actingAs($customerUser)
             ->get(route('customer.payments.index'))
             ->assertOk()
             ->assertSee('Pembayaran')
-            ->assertSee('Tunai (Cash)')
-            ->assertSee('QRIS (E-Payment)')
+            ->assertSee('Tunai')
+            ->assertSee('GoPay')
+            ->assertDontSee('Pilih jenis pembayaran')
+            ->assertDontSee('DANA (E-Wallet)')
+            ->assertDontSee('Transfer Bank')
             ->assertSee($order->order_code)
             ->assertDontSee($otherOrder->order_code);
 
@@ -478,7 +623,7 @@ class AuthenticationAndAuthorizationTest extends TestCase
             ->assertOk()
             ->assertSee($order->order_code)
             ->assertSee('Rp 50.000')
-            ->assertSee('QRIS')
+            ->assertSee('GoPay')
             ->assertSee('Pembaruan pesanan')
             ->assertSee('aria-label="Notifikasi pembaruan status pesanan, 1 pembaruan"', false)
             ->assertSee('Status diubah dari Menunggu menjadi Selesai.')
@@ -523,11 +668,11 @@ class AuthenticationAndAuthorizationTest extends TestCase
         ]);
 
         $this->actingAs($customerUser)
-            ->patch(route('customer.payments.update', $order->id), ['payment_method' => 'QRIS'])
+            ->patch(route('customer.payments.update', $order->id), ['payment_method' => 'GoPay'])
             ->assertRedirect(route('customer.payments.index'))
             ->assertSessionHas('success');
 
-        $this->assertDatabaseHas('orders', ['id' => $order->id, 'payment_method' => 'QRIS']);
+        $this->assertDatabaseHas('orders', ['id' => $order->id, 'payment_method' => 'GoPay']);
 
         $this->actingAs($customerUser)
             ->patch(route('customer.payments.update', $order->id), ['payment_method' => 'Tunai'])
@@ -536,14 +681,26 @@ class AuthenticationAndAuthorizationTest extends TestCase
         $this->assertDatabaseHas('orders', ['id' => $order->id, 'payment_method' => 'Tunai']);
 
         $this->actingAs($customerUser)
-            ->patch(route('customer.payments.update', $otherOrder->id), ['payment_method' => 'QRIS'])
+            ->patch(route('customer.payments.update', $otherOrder->id), ['payment_method' => 'GoPay'])
             ->assertNotFound();
 
         $this->assertDatabaseHas('orders', ['id' => $otherOrder->id, 'payment_method' => null]);
 
         $this->actingAs($customerUser)
             ->from(route('customer.payments.index'))
+            ->patch(route('customer.payments.update', $order->id), ['payment_method' => 'DANA'])
+            ->assertRedirect(route('customer.payments.index'))
+            ->assertSessionHasErrors('payment_method');
+
+        $this->actingAs($customerUser)
+            ->from(route('customer.payments.index'))
             ->patch(route('customer.payments.update', $order->id), ['payment_method' => 'E-Wallet'])
+            ->assertRedirect(route('customer.payments.index'))
+            ->assertSessionHasErrors('payment_method');
+
+        $this->actingAs($customerUser)
+            ->from(route('customer.payments.index'))
+            ->patch(route('customer.payments.update', $order->id), ['payment_method' => 'Transfer Bank'])
             ->assertRedirect(route('customer.payments.index'))
             ->assertSessionHasErrors('payment_method');
     }
@@ -560,7 +717,7 @@ class AuthenticationAndAuthorizationTest extends TestCase
         $this->actingAs($admin)->get(route('customer.orders.index'))->assertForbidden();
         $this->actingAs($admin)->get(route('customer.payments.index'))->assertForbidden();
         $this->actingAs($admin)
-            ->patch(route('customer.payments.update', 1), ['payment_method' => 'QRIS'])
+            ->patch(route('customer.payments.update', 1), ['payment_method' => 'DANA'])
             ->assertForbidden();
     }
 

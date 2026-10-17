@@ -9,8 +9,8 @@ class Order extends Model
 {
     use HasFactory;
 
-    public const PAYMENT_METHODS = ['Tunai', 'Transfer Bank', 'QRIS'];
-    public const CUSTOMER_PAYMENT_METHODS = ['Tunai', 'Transfer Bank', 'QRIS'];
+    public const PAYMENT_METHODS = ['GoPay', 'Tunai'];
+    public const CUSTOMER_PAYMENT_METHODS = ['GoPay', 'Tunai'];
 
     protected $fillable = [
         'order_code',
@@ -21,6 +21,8 @@ class Order extends Model
         'estimated_completion_date',
         'current_status',
         'payment_method',
+        'payment_reported_at',
+        'payment_verified_at',
         'total_items',
         'total_price',
     ];
@@ -29,6 +31,8 @@ class Order extends Model
         'order_date' => 'date',
         'estimated_completion_date' => 'date',
         'total_price' => 'decimal:2',
+        'payment_reported_at' => 'datetime',
+        'payment_verified_at' => 'datetime',
     ];
 
     public function customer()

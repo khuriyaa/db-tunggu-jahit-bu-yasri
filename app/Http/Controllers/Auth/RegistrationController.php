@@ -24,7 +24,7 @@ class RegistrationController extends Controller
         $validated = $request->validate([
             'name' => ['required', 'string', 'max:255'],
             'email' => ['required', 'string', 'email', 'max:255', 'unique:users,email'],
-            'phone_number' => ['nullable', 'string', 'max:30'],
+            'phone_number' => ['required', 'string', 'max:30'],
             'password' => ['required', 'confirmed', Password::min(8)],
         ]);
 

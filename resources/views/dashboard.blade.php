@@ -44,6 +44,10 @@
                 </a>
             @endif
             @if (auth()->user()->role?->role_name === 'Admin')
+                <a class="nav-link" href="{{ route('orders.history') }}">
+                    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 5h16v15H4zM8 3v4m8-4v4M4 10h16"/><path d="m8 15 2.2 2.2L16 12"/></svg>
+                    Riwayat Pesanan
+                </a>
                 <a class="nav-link" href="{{ route('users.index') }}">
                     <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="9" cy="8" r="3.5"/><path d="M3 20v-1a6 6 0 0 1 12 0v1M16 5.2a3.5 3.5 0 0 1 0 6.6M18 14a5 5 0 0 1 3 4.6V20"/></svg>
                     Data Pengguna
@@ -156,11 +160,14 @@
                 <div class="banner-stitch" aria-hidden="true"></div>
             </section>
 
-            @if ($isCustomer)
-                @if (session('success'))
-                    <div class="alert-success reveal" role="status">{{ session('success') }}</div>
-                @endif
+            @if (session('success'))
+                <div class="alert-success order-success-toast" role="status" data-toast>
+                    <span>{{ session('success') }}</span>
+                    <button class="toast-dismiss" type="button" aria-label="Tutup notifikasi">&times;</button>
+                </div>
+            @endif
 
+            @if ($isCustomer)
                 @if ($customerPage === 'create')
                 <section class="table-card customer-order-create-card reveal" id="buat-pesanan">
                     <div class="table-card-heading">
@@ -174,9 +181,14 @@
                         @endif
                         <div class="order-form-grid">
                             <div class="form-field">
+                                <label for="customer_phone_number">Nomor telepon</label>
+                                <input id="customer_phone_number" name="phone_number" type="tel" inputmode="numeric" pattern="[0-9]*" maxlength="30" value="{{ old('phone_number', auth()->user()->phone_number) }}" placeholder="08xxxxxxxxxx" autocomplete="tel" required>
+                                @error('phone_number')<span class="field-error">{{ $message }}</span>@enderror
+                            </div>
+                            <div class="form-field">
                                 <label for="customer_service_id">Layanan</label>
                                 <select id="customer_service_id" name="service_id" required>
-                                    <option value="">Pilih layanan</option>
+                                    <option value=""></option>
                                     @foreach ($services as $service)
                                         <option value="{{ $service->id }}" @selected(old('service_id') == $service->id)>{{ $service->service_name }} · Rp {{ number_format($service->base_price, 0, ',', '.') }}</option>
                                     @endforeach
@@ -206,7 +218,6 @@
                             <div class="form-field">
                                 <label for="customer_payment_method">Jenis pembayaran</label>
                                 <select id="customer_payment_method" name="payment_method" required>
-                                    <option value="">Pilih jenis pembayaran</option>
                                     @foreach (\App\Models\Order::CUSTOMER_PAYMENT_METHODS as $paymentMethod)
                                         <option value="{{ $paymentMethod }}" @selected(old('payment_method') === $paymentMethod)>{{ $paymentMethod }}</option>
                                     @endforeach
@@ -230,31 +241,27 @@
                 @if ($customerPage === 'payments')
                 <section class="customer-payment-note reveal" role="note">
                     <span class="customer-notification-icon" aria-hidden="true">i</span>
-                    <p><strong>Pembayaran belum diproses otomatis.</strong> Pilihan metode hanya dicatat pada pesanan. Untuk QRIS atau e-wallet/bank yang mendukung QRIS, pindai kode merchant berikut menggunakan aplikasi pembayaran. Transfer bank perlu dikonfirmasi dengan petugas. Pembayaran tunai dilakukan langsung kepada petugas.</p>
+                    <p><strong>Pembayaran belum diproses otomatis.</strong> Pilihan metode hanya dicatat pada pesanan. Pembayaran GoPay dilakukan melalui aplikasi GoPay, sedangkan pembayaran tunai dilakukan langsung kepada petugas.</p>
                 </section>
-                @if ($customerOrders->contains('payment_method', 'QRIS') && $paymentSetting?->qr_image_path)
+                @if ($customerOrders->contains('payment_method', 'DANA'))
                     <section class="customer-merchant-qr reveal" aria-labelledby="customer-merchant-qr-title">
                         <div>
-                            <span class="section-kicker">PEMBAYARAN QRIS</span>
-                            <h2 id="customer-merchant-qr-title">Pindai QRIS merchant</h2>
-                            <p>Buka aplikasi e-wallet atau mobile banking yang mendukung QRIS, lalu pindai kode ini. Pastikan nama merchant dan nominal sudah benar sebelum membayar.</p>
+                            <span class="section-kicker">PEMBAYARAN DANA</span>
+                            <h2 id="customer-merchant-qr-title">Pindai kode DANA</h2>
+                            <p>Buka aplikasi DANA, lalu pindai kode ini. Pastikan nama penerima dan nominal sudah benar sebelum membayar.</p>
                         </div>
-                        <img src="{{ route('payment.qr') }}" alt="Kode QRIS merchant untuk pembayaran Tunggu Jahit Bu Yasri" width="320" height="320">
+                        <img src="{{ $paymentSetting?->qr_image_path ? route('payment.qr') : asset('images/dana-qr.png') }}" alt="Kode pembayaran DANA Tunggu Jahit Bu Yasri" width="320" height="320">
                     </section>
-                @elseif ($customerOrders->contains('payment_method', 'QRIS'))
-                    <div class="customer-payment-note customer-payment-unavailable reveal" role="status">
-                        <span class="customer-notification-icon" aria-hidden="true">!</span>
-                        <p><strong>QRIS belum tersedia.</strong> Admin belum memasang kode QRIS merchant. Silakan hubungi petugas atau pilih pembayaran tunai.</p>
-                    </div>
                 @endif
                 <section class="table-card customer-payment-card reveal">
                     <div class="table-card-heading">
-                        <div><h2>Pilih metode pembayaran</h2><p>Pilih Tunai atau e-payment QRIS untuk setiap pesanan</p></div>
+                        <div><h2>Pilih metode pembayaran</h2><p>Pilih GoPay atau Tunai untuk setiap pesanan</p></div>
                         <span class="table-sewing-mark" aria-hidden="true">✧</span>
                     </div>
+                    @error('payment')<div class="alert-error" role="alert">{{ $message }}</div>@enderror
                     <div class="table-scroll">
                         <table>
-                            <thead><tr><th scope="col">Kode pesanan</th><th scope="col">Tanggal</th><th scope="col">Total</th><th scope="col">Metode pembayaran</th><th scope="col">Simpan</th></tr></thead>
+                            <thead><tr><th scope="col">Kode pesanan</th><th scope="col">Tanggal</th><th scope="col">Total</th><th scope="col">Metode pembayaran</th><th scope="col">Simpan</th><th scope="col">Konfirmasi pembayaran</th></tr></thead>
                             <tbody>
                                 @forelse ($customerOrders as $order)
                                     <tr>
@@ -266,20 +273,34 @@
                                                 @csrf
                                                 @method('PATCH')
                                                 <label class="visually-hidden" for="payment-method-{{ $order->id }}">Metode pembayaran {{ $order->order_code }}</label>
-                                                <select id="payment-method-{{ $order->id }}" name="payment_method" required>
+                                                <select id="payment-method-{{ $order->id }}" name="payment_method" required @disabled($order->payment_reported_at || $order->payment_verified_at)>
                                                     @if (! $order->payment_method)
                                                         <option value="" selected disabled>Pilih metode</option>
                                                     @endif
                                                     @foreach (\App\Models\Order::CUSTOMER_PAYMENT_METHODS as $paymentMethod)
-                                                        <option value="{{ $paymentMethod }}" @selected($order->payment_method === $paymentMethod)>{{ match ($paymentMethod) { 'Tunai' => 'Tunai (Cash)', 'Transfer Bank' => 'Transfer Bank (E-Payment)', default => 'QRIS (E-Payment)' } }}</option>
+                                                        <option value="{{ $paymentMethod }}" @selected($order->payment_method === $paymentMethod)>{{ $paymentMethod }}</option>
                                                     @endforeach
                                                 </select>
                                             </form>
                                         </td>
-                                        <td><button class="button button-primary customer-payment-save" type="submit" form="payment-form-{{ $order->id }}">Simpan</button></td>
+                                        <td><button class="button button-primary customer-payment-save" type="submit" form="payment-form-{{ $order->id }}" @disabled($order->payment_reported_at || $order->payment_verified_at)>Simpan</button></td>
+                                        <td>
+                                            @if ($order->payment_verified_at)
+                                                <span class="status-badge status-selesai">Terverifikasi</span>
+                                            @elseif ($order->payment_reported_at)
+                                                <span class="status-badge status-diproses">Menunggu verifikasi</span>
+                                            @elseif (! $order->payment_method)
+                                                <span class="form-hint">Pilih metode pembayaran terlebih dahulu.</span>
+                                            @else
+                                                <form method="POST" action="{{ route('customer.payments.report', $order->id) }}" data-confirm="Laporkan bahwa pembayaran pesanan ini sudah dilakukan?">
+                                                    @csrf
+                                                    <button class="button button-primary customer-payment-save" type="submit">Saya sudah membayar</button>
+                                                </form>
+                                            @endif
+                                        </td>
                                     </tr>
                                 @empty
-                                    <tr><td class="empty-state" colspan="5"><span aria-hidden="true">✂</span><strong>Belum ada pesanan</strong><small>Buat pesanan terlebih dahulu untuk memilih metode pembayaran.</small></td></tr>
+                                    <tr><td class="empty-state" colspan="6"><span aria-hidden="true">✂</span><strong>Belum ada pesanan</strong><small>Buat pesanan terlebih dahulu untuk memilih metode pembayaran.</small></td></tr>
                                 @endforelse
                             </tbody>
                         </table>
@@ -344,6 +365,42 @@
             @endif
 
             @unless ($isCustomer)
+            @if (auth()->user()->role?->role_name === 'Admin')
+            <section class="table-card reveal" aria-labelledby="admin-payment-notifications-title">
+                <div class="table-card-heading">
+                    <div>
+                        <h2 id="admin-payment-notifications-title">Notifikasi pembayaran</h2>
+                        <p>{{ $paymentNotificationsCount }} laporan pembayaran menunggu verifikasi</p>
+                    </div>
+                    <span class="table-sewing-mark" aria-hidden="true">✧</span>
+                </div>
+                <div class="table-scroll">
+                    <table>
+                        <thead><tr><th scope="col">Waktu laporan</th><th scope="col">Kode pesanan</th><th scope="col">Pelanggan</th><th scope="col">Metode</th><th scope="col">Total</th><th scope="col">Tindakan</th></tr></thead>
+                        <tbody>
+                            @forelse ($paymentNotifications as $paymentNotification)
+                                <tr>
+                                    <td>{{ $paymentNotification->payment_reported_at->locale('id')->translatedFormat('d F Y, H:i') }}</td>
+                                    <td><strong>{{ $paymentNotification->order_code }}</strong></td>
+                                    <td>{{ $paymentNotification->customer?->user?->name ?? 'Pelanggan dihapus' }}</td>
+                                    <td>{{ $paymentNotification->payment_method ?? 'Belum dipilih' }}</td>
+                                    <td class="order-amount">Rp {{ number_format((float) $paymentNotification->total_price, 0, ',', '.') }}</td>
+                                    <td>
+                                        <form method="POST" action="{{ route('admin.orders.payment.verify', $paymentNotification) }}" data-confirm="Konfirmasi bahwa pembayaran pesanan ini sudah diterima?">
+                                            @csrf
+                                            @method('PATCH')
+                                            <button class="button button-primary customer-payment-save" type="submit">Konfirmasi diterima</button>
+                                        </form>
+                                    </td>
+                                </tr>
+                            @empty
+                                <tr><td class="empty-state" colspan="6"><strong>Tidak ada laporan pembayaran yang menunggu verifikasi</strong></td></tr>
+                            @endforelse
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+            @endif
             <section class="section-block" id="ringkasan">
                 <div class="section-heading reveal">
                     <div>

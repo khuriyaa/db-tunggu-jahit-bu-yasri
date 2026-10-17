@@ -68,6 +68,16 @@ class OwnerDashboardController extends Controller
             ->limit(5)
             ->get();
 
-        return view('owner.dashboard', compact('summary', 'monthlyFinancials', 'recentOrders'));
+        $pendingPayments = Order::query()
+            ->whereNotNull('payment_reported_at')
+            ->whereNull('payment_verified_at');
+        $paymentNotificationsCount = (clone $pendingPayments)->count();
+        $paymentNotifications = $pendingPayments
+            ->with('customer.user')
+            ->latest('payment_reported_at')
+            ->limit(10)
+            ->get();
+
+        return view('owner.dashboard', compact('summary', 'monthlyFinancials', 'recentOrders', 'paymentNotifications', 'paymentNotificationsCount'));
     }
 }

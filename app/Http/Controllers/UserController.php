@@ -42,10 +42,14 @@ class UserController extends Controller
 
     public function store(Request $request): RedirectResponse
     {
+        $phoneNumberRules = Role::query()->whereKey($request->input('role_id'))->value('role_name') === 'Customer'
+            ? ['required', 'string', 'max:30']
+            : ['nullable', 'string', 'max:30'];
+
         $validated = $request->validate([
             'name' => ['required', 'string', 'max:255'],
             'email' => ['required', 'string', 'email', 'max:255', 'unique:users,email'],
-            'phone_number' => ['nullable', 'string', 'max:30'],
+            'phone_number' => $phoneNumberRules,
             'role_id' => [
                 'required',
                 'integer',
@@ -77,6 +81,10 @@ class UserController extends Controller
     public function update(Request $request, User $user): RedirectResponse
     {
         $errorBag = 'updateUser'.$user->id;
+        $phoneNumberRules = Role::query()->whereKey($request->input('role_id'))->value('role_name') === 'Customer'
+            ? ['required', 'string', 'max:30']
+            : ['nullable', 'string', 'max:30'];
+
         $validated = $request->validateWithBag($errorBag, [
             'name' => ['required', 'string', 'max:255'],
             'email' => [
@@ -86,6 +94,7 @@ class UserController extends Controller
                 'max:255',
                 Rule::unique('users', 'email')->ignore($user->id),
             ],
+            'phone_number' => $phoneNumberRules,
             'role_id' => [
                 'required',
                 'integer',
@@ -122,6 +131,7 @@ class UserController extends Controller
             $lockedUser->fill([
                 'name' => $validated['name'],
                 'email' => $validated['email'],
+                'phone_number' => $validated['phone_number'] ?? $user->phone_number,
                 'role_id' => $role->id,
             ])->save();
 

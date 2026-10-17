@@ -27,6 +27,10 @@
                 <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 19.5V11m8 8.5V4.5m8 15v-6"/><path d="M2.5 20.5h19"/></svg>
                 Laporan pesanan &amp; keuangan
             </a>
+            <a class="nav-link" href="{{ route('orders.history') }}">
+                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 5h16v15H4zM8 3v4m8-4v4M4 10h16"/><path d="m8 15 2.2 2.2L16 12"/></svg>
+                Riwayat Pesanan
+            </a>
         </nav>
         <div class="sidebar-note"><span class="note-icon" aria-hidden="true">✦</span><strong>Ringkasan usaha</strong><p>Pantau pesanan dan nilai usaha dalam satu tempat.</p></div>
         <div class="sidebar-profile">

@@ -42,7 +42,10 @@
             </section>
 
             @if (session('success'))
-                <div class="alert-success reveal" role="status">{{ session('success') }}</div>
+                <div class="alert-success order-success-toast" role="status" data-toast>
+                    <span>{{ session('success') }}</span>
+                    <button class="toast-dismiss" type="button" aria-label="Tutup notifikasi">&times;</button>
+                </div>
             @endif
             @if (session('error'))
                 <div class="alert-error reveal" role="alert">{{ session('error') }}</div>
@@ -71,7 +74,7 @@
                             </div>
                             <div class="form-field">
                                 <label for="new_customer_email">Email pelanggan</label>
-                                <input id="new_customer_email" name="new_customer_email" type="email" maxlength="255" value="{{ old('new_customer_email') }}" autocomplete="email">
+                                <input id="new_customer_email" name="new_customer_email" type="email" maxlength="255" value="{{ old('new_customer_email') }}" autocomplete="email" required>
                                 @error('new_customer_email')<span class="field-error">{{ $message }}</span>@enderror
                             </div>
                             <div class="form-field">
@@ -80,15 +83,15 @@
                                 @error('new_customer_password')<span class="field-error">{{ $message }}</span>@enderror
                             </div>
                             <div class="form-field">
-                                <label for="new_customer_phone">Nomor telepon <span>(opsional)</span></label>
-                                <input id="new_customer_phone" name="new_customer_phone" type="tel" maxlength="30" value="{{ old('new_customer_phone') }}" autocomplete="tel">
+                                <label for="new_customer_phone">Nomor telepon</label>
+                                <input id="new_customer_phone" name="new_customer_phone" type="tel" inputmode="numeric" pattern="[0-9]*" maxlength="30" value="{{ old('new_customer_phone') }}" autocomplete="tel" required>
                                 @error('new_customer_phone')<span class="field-error">{{ $message }}</span>@enderror
                             </div>
                         </div>
                         <div class="form-field">
                             <label for="service_id">Layanan</label>
                             <select id="service_id" name="service_id" required>
-                                <option value="">Pilih layanan</option>
+                                <option value=""></option>
                                 @foreach ($services as $service)
                                     <option value="{{ $service->id }}" @selected(old('service_id') == $service->id)>{{ $service->service_name }} · Rp {{ number_format($service->base_price, 0, ',', '.') }}</option>
                                 @endforeach

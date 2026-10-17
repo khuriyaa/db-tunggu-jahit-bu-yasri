@@ -27,6 +27,10 @@
                 <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 19.5V11m8 8.5V4.5m8 15v-6"/><path d="M2.5 20.5h19"/></svg>
                 Laporan pesanan &amp; keuangan
             </a>
+            <a class="nav-link" href="{{ route('orders.history') }}">
+                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 5h16v15H4zM8 3v4m8-4v4M4 10h16"/><path d="m8 15 2.2 2.2L16 12"/></svg>
+                Riwayat Pesanan
+            </a>
         </nav>
         <div class="sidebar-note"><span class="note-icon" aria-hidden="true">✦</span><strong>Ringkasan usaha</strong><p>Pantau pesanan yang masuk dan sedang dikerjakan.</p></div>
         <div class="sidebar-profile">
@@ -112,6 +116,35 @@
                         </li>
                     @endforeach
                 </ol>
+            </section>
+
+            <section class="table-card owner-report-card reveal" aria-labelledby="owner-payment-notifications-title">
+                <div class="table-card-heading">
+                    <div>
+                        <h2 id="owner-payment-notifications-title">Notifikasi pembayaran</h2>
+                        <p>{{ $paymentNotificationsCount }} laporan pembayaran menunggu verifikasi Admin</p>
+                    </div>
+                    <span class="table-sewing-mark" aria-hidden="true">✧</span>
+                </div>
+                <div class="table-scroll">
+                    <table>
+                        <thead><tr><th scope="col">Waktu laporan</th><th scope="col">Kode pesanan</th><th scope="col">Pelanggan</th><th scope="col">Metode</th><th scope="col">Total</th><th scope="col">Status</th></tr></thead>
+                        <tbody>
+                            @forelse ($paymentNotifications as $paymentNotification)
+                                <tr>
+                                    <td>{{ $paymentNotification->payment_reported_at->locale('id')->translatedFormat('d F Y, H:i') }}</td>
+                                    <td><strong>{{ $paymentNotification->order_code }}</strong></td>
+                                    <td>{{ $paymentNotification->customer?->user?->name ?? 'Pelanggan dihapus' }}</td>
+                                    <td>{{ $paymentNotification->payment_method ?? 'Belum dipilih' }}</td>
+                                    <td class="order-amount">Rp {{ number_format((float) $paymentNotification->total_price, 0, ',', '.') }}</td>
+                                    <td><span class="status-badge status-diproses">Menunggu verifikasi Admin</span></td>
+                                </tr>
+                            @empty
+                                <tr><td class="empty-state" colspan="6"><strong>Tidak ada laporan pembayaran yang menunggu verifikasi</strong></td></tr>
+                            @endforelse
+                        </tbody>
+                    </table>
+                </div>
             </section>
 
             <section class="table-card owner-report-card reveal">
