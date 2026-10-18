@@ -53,7 +53,14 @@ class LoginController extends Controller
         RateLimiter::clear($key);
         $request->session()->regenerate();
 
-        return redirect()->intended(route('dashboard'));
+        $destination = match (Auth::user()?->role?->role_name) {
+            'Owner' => 'owner.dashboard',
+            'Staff' => 'orders.index',
+            'Customer' => 'customer.orders.create',
+            default => 'dashboard',
+        };
+
+        return redirect()->route($destination);
     }
 
     public function destroy(Request $request): RedirectResponse

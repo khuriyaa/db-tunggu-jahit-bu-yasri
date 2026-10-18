@@ -38,6 +38,48 @@ class AuthenticationAndAuthorizationTest extends TestCase
         $this->assertAuthenticatedAs($user);
     }
 
+    public function test_owner_is_redirected_to_the_owner_dashboard_after_login(): void
+    {
+        $this->createUser('Owner', [
+            'email' => 'owner@example.com',
+            'password' => 'correct-password',
+        ]);
+
+        $this->post(route('login.store'), [
+            'email' => 'owner@example.com',
+            'password' => 'correct-password',
+        ])->assertRedirect(route('owner.dashboard'));
+    }
+
+    public function test_staff_is_redirected_to_orders_after_login(): void
+    {
+        $this->createUser('Staff', [
+            'email' => 'staff@example.com',
+            'password' => 'correct-password',
+        ]);
+
+        $this->post(route('login.store'), [
+            'email' => 'staff@example.com',
+            'password' => 'correct-password',
+        ])->assertRedirect(route('orders.index'));
+    }
+
+    public function test_customer_is_redirected_to_customer_orders_after_login_even_with_another_intended_url(): void
+    {
+        $this->get(route('owner.dashboard'))
+            ->assertRedirect(route('login'));
+
+        $this->createUser('Customer', [
+            'email' => 'customer@example.com',
+            'password' => 'correct-password',
+        ]);
+
+        $this->post(route('login.store'), [
+            'email' => 'customer@example.com',
+            'password' => 'correct-password',
+        ])->assertRedirect(route('customer.orders.create'));
+    }
+
     public function test_customer_can_register_and_is_logged_in_with_a_customer_profile(): void
     {
         $this->get(route('register'))
